@@ -20,6 +20,7 @@ import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.XMLGregorianCalendar;
 
 import org.apache.commons.lang3.StringUtils;
+import org.roda_project.commons_ip.model.MetadataType;
 import org.roda_project.commons_ip.utils.IPEnums.IPType;
 import org.roda_project.commons_ip.utils.IPException;
 import org.roda_project.commons_ip.utils.METSEnums;
@@ -337,7 +338,7 @@ public final class EARKMETSUtils {
 
   public static MdRef addOtherMetadataToMETS(final MetsWrapper metsWrapper, final IPMetadata otherMetadata,
     final String otherMetadataPath) throws IPException, InterruptedException {
-    return addMetadataToMETS(metsWrapper, otherMetadata, otherMetadataPath, "OTHER", null, null, false);
+    return addMetadataToMETS(metsWrapper, otherMetadata, otherMetadataPath, MetadataType.MetadataTypeEnum.OTHER.getType() , otherMetadata.getId(), null, false);
   }
 
   private static MdRef addMetadataToMETS(final MetsWrapper metsWrapper, final IPMetadata metadata,
@@ -613,11 +614,11 @@ public final class EARKMETSUtils {
       final FileGrp schemasFileGroup = createFileGroup(IPConstants.SCHEMAS_WITH_FIRST_LETTER_CAPITAL);
       fileSec.getFileGrp().add(schemasFileGroup);
       metsWrapper.setSchemasFileGroup(schemasFileGroup);
-      if (IPType.AIP.toString().equals(type) && isSubmission) {
-        final FileGrp submissionFileGroup = createFileGroup(IPConstants.SUBMISSION);
-        fileSec.getFileGrp().add(submissionFileGroup);
-        metsWrapper.setSubmissionFileGroup(submissionFileGroup);
-      }
+    }
+    if (IPType.AIP.toString().equals(type) && isSubmission) {
+      final FileGrp submissionFileGroup = createFileGroup(IPConstants.SUBMISSION);
+      fileSec.getFileGrp().add(submissionFileGroup);
+      metsWrapper.setSubmissionFileGroup(submissionFileGroup);
     }
     if (isDocumentation) {
       final FileGrp documentationFileGroup = createFileGroup(IPConstants.DOCUMENTATION_WITH_FIRST_LETTER_CAPITAL);
