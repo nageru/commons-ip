@@ -80,6 +80,18 @@ public final class IPConstants {
   public static final String RODA_DIV_LABEL = "RODA";
   public static final String RODA_ANCESTORS_DIV_LABEL = "Ancestors";
 
+  // iArxiu
+  public static final String PARENT_KEY = "parent";
+  public static final String METADATA_KEY = "metadata";
+  public static final String FIELD_KEY = "field";
+  public static final String NAME_KEY = "name";
+  public static final String ID_KEY = "id";
+  public static final String VENDOR_KEY = "vendor";
+  public static final String DATA_FOLDER_KEY = "data";
+  public static final String VENDOR_COMMONS_IP_KEY = "commons-ip";
+
+
+
   // Bagit
   public static final String BAGIT_PARENT = "parent";
   public static final String BAGIT_ID = "id";
