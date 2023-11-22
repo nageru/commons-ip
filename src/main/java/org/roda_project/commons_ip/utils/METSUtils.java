@@ -48,15 +48,31 @@ public final class METSUtils {
   }
 
   public static Mets instantiateMETSFromFile(Path metsFile) throws JAXBException, SAXException {
-    JAXBContext jaxbContext = JAXBContext.newInstance(Mets.class);
-    Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-    SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-    factory.setResourceResolver(new ResourceResolver());
+    return unmarshallMETS(getMETSUnmarshaller(), metsFile);
+  }
+
+  public static Mets instantiateRelaxedMETSFromFile(Path metsFile) throws JAXBException, SAXException {
+    return unmarshallMETS(getRelaxedMETSUnmarshaller(), metsFile);
+  }
+
+  private static Mets unmarshallMETS(Unmarshaller unmarshaller, Path metsFile) throws JAXBException {
+    return (Mets) unmarshaller.unmarshal(metsFile.toFile());
+  }
+
+  private static Unmarshaller getMETSUnmarshaller() throws JAXBException, SAXException {
+    final Unmarshaller jaxbUnmarshaller = getRelaxedMETSUnmarshaller();
     InputStream metsSchemaInputStream = METSUtils.class.getResourceAsStream("/schemas/mets1_11.xsd");
     Source metsSchemaSource = new StreamSource(metsSchemaInputStream);
+    SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+    factory.setResourceResolver(new ResourceResolver());
     Schema schema = factory.newSchema(metsSchemaSource);
     jaxbUnmarshaller.setSchema(schema);
-    return (Mets) jaxbUnmarshaller.unmarshal(metsFile.toFile());
+    return jaxbUnmarshaller;
+  }
+  private static Unmarshaller getRelaxedMETSUnmarshaller() throws JAXBException {
+    JAXBContext jaxbContext = JAXBContext.newInstance(Mets.class);
+    Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+    return jaxbUnmarshaller;
   }
 
   public static Path marshallMETS(Mets mets, Path tempMETSFile, boolean rootMETS)
@@ -90,7 +106,7 @@ public final class METSUtils {
     String[] contentTypeParts = metsType.split(":");
     if (contentTypeParts.length != 2 || StringUtils.isBlank(contentTypeParts[0])
             || StringUtils.isBlank(contentTypeParts[1])) {
-      throw new ParseException("METS 'TYPE' attribute does not contain a valid value");
+      throw new ParseException("METS 'TYPE' attribute does not contain a valid value: " + metsType);
     }
 
     try {

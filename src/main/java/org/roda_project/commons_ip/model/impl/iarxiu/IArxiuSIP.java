@@ -6,6 +6,7 @@
 package org.roda_project.commons_ip.model.impl.iarxiu;
 
 import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
+import org.roda_project.commons_ip.mets_v1_11.beans.MetsType;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.*;
 import org.roda_project.commons_ip.utils.ZIPUtils; // TODO commons_ip2.utils.ZIPUtils;
@@ -92,9 +93,14 @@ public class IArxiuSIP extends SIP {
         if (mainMets != null && validationReport.isValid()) {
 
           sip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
-          sip.setCreateDate(mainMets.getMetsHdr().getCREATEDATE());
-          sip.setModificationDate(mainMets.getMetsHdr().getLASTMODDATE());
-          sip.setStatus(IPEnums.IPStatus.parse(mainMets.getMetsHdr().getRECORDSTATUS()));
+          final MetsType.MetsHdr metsHdr = mainMets.getMetsHdr();
+          if (metsHdr != null) {
+            sip.setCreateDate(metsHdr.getCREATEDATE());
+            sip.setModificationDate(metsHdr.getLASTMODDATE());
+            sip.setStatus(IPEnums.IPStatus.parse(metsHdr.getRECORDSTATUS()));
+          } else {
+            LOGGER.warn("iArxiu sip '{}' contains no headers in the main mets file: {}", sipPath, mainMetsFile);
+          }
 
           final IPContentType ipContentType = METSUtils.getIPContentType(mainMets, sip);
           sip.setContentType(ipContentType);

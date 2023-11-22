@@ -63,7 +63,7 @@ public final class IArxiuUtils {
    */
   public static Mets parseMainMets(ValidationReport validation, Path ipPath, Path mainMETSFile) {
       try {
-        return METSUtils.instantiateMETSFromFile(mainMETSFile);
+        return METSUtils.instantiateRelaxedMETSFromFile(mainMETSFile);
       } catch (JAXBException | SAXException e) {
         ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_NOT_VALID,
                 ValidationEntry.LEVEL.ERROR, e, ipPath, mainMETSFile);
