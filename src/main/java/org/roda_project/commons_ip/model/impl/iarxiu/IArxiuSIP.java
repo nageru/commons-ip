@@ -5,21 +5,14 @@
  */
 package org.roda_project.commons_ip.model.impl.iarxiu;
 
-import gov.loc.repository.bagit.domain.Bag;
-import gov.loc.repository.bagit.domain.Manifest;
-import gov.loc.repository.bagit.exceptions.*;
-import gov.loc.repository.bagit.reader.BagReader;
-import gov.loc.repository.bagit.verify.BagVerifier;
-import org.apache.commons.io.IOUtils;
+import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
 import org.roda_project.commons_ip.model.*;
-import org.roda_project.commons_ip.utils.IPException;
-import org.roda_project.commons_ip.utils.Utils;
+import org.roda_project.commons_ip.utils.*;
+import org.roda_project.commons_ip.utils.ZIPUtils; // TODO commons_ip2.utils.ZIPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -85,80 +78,77 @@ public class IArxiuSIP extends SIP {
   }
 
   private static SIP parseIArxiu(final Path source, final Path destinationDirectory) throws ParseException {
-    IPConstants.METS_ENCODE_AND_DECODE_HREF = true;
-    SIP sip = new IArxiuSIP();
+    IPConstants.METS_ENCODE_AND_DECODE_HREF = true; // anti-pattern: not valid for multithreading
+    final SIP sip = new IArxiuSIP();
 
-    Path sipPath = IArxiuUtils.extractIArxiuIPIfInZipFormat(source, destinationDirectory);
+    final Path sipPath = ZIPUtils.extractIPIfInZipFormat(source, destinationDirectory);
     sip.setBasePath(sipPath);
 
-    try (BagVerifier verifier = new BagVerifier()) {
-      BagReader reader = new BagReader();
-      Bag bag = reader.read(sipPath);
-      verifier.isValid(bag, false);
+    final ValidationReport validationReport = sip.getValidationReport();
+    if (true) { /* reading same as from EARK SIP */
+      final Path mainMetsFile = IArxiuUtils.getMainMetsFile(validationReport, sipPath);
+      if (mainMetsFile != null && validationReport.isValid()) {
+        final Mets mainMets = IArxiuUtils.parseMainMets(validationReport, sipPath, mainMetsFile);
+        if (mainMets != null && validationReport.isValid()) {
 
-      Map<String, String> metadataMap = new HashMap<>();
+          sip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
+          sip.setCreateDate(mainMets.getMetsHdr().getCREATEDATE());
+          sip.setModificationDate(mainMets.getMetsHdr().getLASTMODDATE());
+          sip.setStatus(IPEnums.IPStatus.parse(mainMets.getMetsHdr().getRECORDSTATUS()));
 
-      for (AbstractMap.SimpleImmutableEntry<String, String> nameValue : bag.getMetadata().getAll()) {
-        String key = nameValue.getKey();
-        String value = nameValue.getValue();
+          final IPContentType ipContentType = METSUtils.getIPContentType(mainMets, sip);
+          sip.setContentType(ipContentType);
 
-        if (IPConstants.PARENT_KEY.equals(key)) {
-          sip.setAncestors(Arrays.asList(value));
-        } else {
-          if (IPConstants.ID_KEY.equals(key)) {
-            sip.setId(value);
-          }
-          metadataMap.put(key, value);
+          METSUtils.getIpAgents(mainMets).forEach(ipAgent -> sip.addAgent(ipAgent));
+
+          ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
         }
       }
-
-      String vendor = metadataMap.get(IPConstants.VENDOR_KEY);
-      Path metadataPath = destinationDirectory.resolve(Utils.generateRandomAndPrefixedUUID());
-      sip.addDescriptiveMetadata(IArxiuUtils.createIArxiuMetadata(metadataMap, metadataPath));
-      final Map<String, IPRepresentation> representations = new HashMap<>();
-      for (Manifest payLoadManifest : bag.getPayLoadManifests()) {
-        Map<Path, String> fileToChecksumMap = payLoadManifest.getFileToChecksumMap();
-        for (Path payload : fileToChecksumMap.keySet()) {
-          List<String> split = Arrays.asList(sipPath.relativize(payload).toString().split("/"));
-          if (split.size() > 1 && IPConstants.DATA_FOLDER_KEY.equals(split.get(0))) {
-            String representationId = "rep1";
-            int beginIndex = 1;
-            if (IPConstants.VENDOR_COMMONS_IP_KEY.equals(vendor)) {
-              representationId = split.get(1);
-              beginIndex = 2;
-            }
-
-            if (!representations.containsKey(representationId)) {
-              representations.put(representationId, new IPRepresentation(representationId));
-            }
-
-            IPRepresentation representation = representations.get(representationId);
-            List<String> directoryPath = split.subList(beginIndex, split.size() - 1);
-            Path destPath = destinationDirectory.resolve(split.get(split.size() - 1));
-            try (InputStream bagStream = Files.newInputStream(payload);
-              OutputStream destStream = Files.newOutputStream(destPath)) {
-              IOUtils.copyLarge(bagStream, destStream);
-            }
-
-            IPFile file = new IPFile(destPath, directoryPath);
-            representation.addFile(file);
-          }
-        }
-      }
-
-      for (IPRepresentation rep : representations.values()) {
-        sip.addRepresentation(rep);
-      }
-
-      return sip;
-    } catch (final IPException | IOException | UnparsableVersionException e) {
-      throw new ParseException("Error parsing iArxiu SIP", e);
-    } catch (MissingPayloadManifestException | MissingBagitFileException | InterruptedException
-      | FileNotInPayloadDirectoryException | InvalidBagitFileFormatException | VerificationException
-      | UnsupportedAlgorithmException | CorruptChecksumException | MaliciousPathException
-      | MissingPayloadDirectoryException e) {
-      throw new ParseException("Error validating iArxiu SIP", e);
     }
+
+    /* Sample from BagIt <- TODO doing as from BagIt? */
+    if (false) {
+      Map<String, String> metadataMap = new HashMap<>();
+      // loads from reader
+      sip.setAncestors(Arrays.asList("")); // IPConstants.PARENT_KEY
+      sip.setId(""); // value <- IPConstants.ID_KEY
+      metadataMap.put("", ""); // <- key, value
+
+      // loads from read map
+      final String vendor = metadataMap.get(IPConstants.VENDOR_KEY);
+
+      final Path metadataPath = destinationDirectory.resolve(Utils.generateRandomAndPrefixedUUID());
+      try {
+        sip.addDescriptiveMetadata(IArxiuUtils.createIArxiuMetadata(metadataMap, metadataPath));
+
+        final Map<String, IPRepresentation> representations = new HashMap<>();
+        String representationId = "rep1";
+
+        final Path destPath = null;
+        final List<String> directoryPath = new ArrayList<>();
+        IPFile file = new IPFile(destPath, directoryPath);
+        IPRepresentation representation = new IPRepresentation();
+        representation.addFile(file);
+
+        sip.addRepresentation(representation); // <- representations.values()
+      } catch (IPException e) {
+        throw new ParseException("Error parsing iArxiu SIP", e);
+      }
+
+      /* try ... IPRepresentation destPath:
+             try (InputStream bagStream = Files.newInputStream(payload);
+                OutputStream destStream = Files.newOutputStream(destPath)) {
+                IOUtils.copyLarge(bagStream, destStream);
+              }
+      ... catch (MissingPayloadManifestException | MissingBagitFileException | InterruptedException
+             | FileNotInPayloadDirectoryException | InvalidBagitFileFormatException | VerificationException
+             | UnsupportedAlgorithmException | CorruptChecksumException | MaliciousPathException
+             | MissingPayloadDirectoryException e) {
+        throw new ParseException("Error validating iArxiu SIP", e);
+      }*/
+    }
+
+    return sip;
   }
 
   @Override

@@ -7,16 +7,6 @@
  */
 package org.roda_project.commons_ip.model.impl.eark;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.xml.bind.JAXBException;
-
 import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.DivType;
 import org.roda_project.commons_ip.mets_v1_11.beans.DivType.Fptr;
@@ -25,36 +15,22 @@ import org.roda_project.commons_ip.mets_v1_11.beans.FileType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType.FLocat;
 import org.roda_project.commons_ip.mets_v1_11.beans.MdSecType.MdRef;
 import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
-import org.roda_project.commons_ip.mets_v1_11.beans.MetsType.MetsHdr.Agent;
 import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
-import org.roda_project.commons_ip.model.AIP;
-import org.roda_project.commons_ip.model.IPConstants;
-import org.roda_project.commons_ip.model.IPContentType;
-import org.roda_project.commons_ip.model.IPDescriptiveMetadata;
-import org.roda_project.commons_ip.model.IPFile;
-import org.roda_project.commons_ip.model.IPHeader;
-import org.roda_project.commons_ip.model.IPInterface;
-import org.roda_project.commons_ip.model.IPMetadata;
-import org.roda_project.commons_ip.model.IPRepresentation;
-import org.roda_project.commons_ip.model.MetadataType;
-import org.roda_project.commons_ip.model.MetsWrapper;
-import org.roda_project.commons_ip.model.ParseException;
-import org.roda_project.commons_ip.model.RepresentationContentType;
-import org.roda_project.commons_ip.model.RepresentationStatus;
-import org.roda_project.commons_ip.model.SIP;
-import org.roda_project.commons_ip.model.ValidationEntry;
+import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.model.impl.ModelUtils;
-import org.roda_project.commons_ip.utils.IPEnums;
+import org.roda_project.commons_ip.utils.*;
 import org.roda_project.commons_ip.utils.IPEnums.IPStatus;
-import org.roda_project.commons_ip.utils.IPException;
-import org.roda_project.commons_ip.utils.METSUtils;
-import org.roda_project.commons_ip.utils.Utils;
-import org.roda_project.commons_ip.utils.ValidationConstants;
-import org.roda_project.commons_ip.utils.ValidationUtils;
-import org.roda_project.commons_ip.utils.ZIPUtils;
-import org.roda_project.commons_ip.utils.ZipEntryInfo;
 import org.slf4j.Logger;
 import org.xml.sax.SAXException;
+
+import javax.xml.bind.JAXBException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public final class EARKUtils {
   protected static boolean VALIDATION_FAIL_IF_REPRESENTATION_METS_DOES_NOT_HAVE_TWO_PARTS = false;
@@ -325,41 +301,16 @@ public final class EARKUtils {
   }
 
   protected static void setIPContentType(Mets mets, IPInterface ip) throws ParseException {
-    String metsType = mets.getTYPE();
-
-    if (StringUtils.isBlank(metsType)) {
-      throw new ParseException("METS 'TYPE' attribute does not contain any value");
-    }
-
-    String[] contentTypeParts = metsType.split(":");
-    if (contentTypeParts.length != 2 || StringUtils.isBlank(contentTypeParts[0])
-      || StringUtils.isBlank(contentTypeParts[1])) {
-      throw new ParseException("METS 'TYPE' attribute does not contain a valid value");
-    }
-
-    try {
-      IPEnums.IPType packageType = IPEnums.IPType.valueOf(contentTypeParts[0]);
-
-      if (ip instanceof SIP && IPEnums.IPType.SIP != packageType) {
-        throw new ParseException("METS 'TYPE' attribute should start with 'SIP:'");
-      } else if (ip instanceof AIP && IPEnums.IPType.AIP != packageType) {
-        throw new ParseException("METS 'TYPE' attribute should start with 'AIP:'");
-      }
-    } catch (IllegalArgumentException e) {
-      throw new ParseException("METS 'TYPE' attribute does not contain a valid package type");
-    }
-
-    ip.setContentType(new IPContentType(contentTypeParts[1]));
+    ip.setContentType(METSUtils.getIPContentType(mets, ip));
   }
 
-  protected static Mets addAgentsToMETS(Mets mets, IPInterface ip, IPRepresentation representation) {
-    if (mets.getMetsHdr() != null && mets.getMetsHdr().getAgent() != null) {
-      for (Agent agent : mets.getMetsHdr().getAgent()) {
-        if (representation == null) {
-          ip.addAgent(EARKMETSUtils.createIPAgent(agent));
-        } else {
-          representation.addAgent(EARKMETSUtils.createIPAgent(agent));
-        }
+  public static Mets addAgentsToMETS(Mets mets, IPInterface ip, IPRepresentation representation) {
+    final List<IPAgent> ipAgentList = METSUtils.getIpAgents(mets);
+    for (IPAgent ipAgent : ipAgentList) {
+      if (representation == null) {
+        ip.addAgent(ipAgent);
+      } else {
+        representation.addAgent(ipAgent);
       }
     }
 

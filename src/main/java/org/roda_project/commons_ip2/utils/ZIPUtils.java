@@ -54,8 +54,6 @@ public final class ZIPUtils {
    * @param destinationDirectory
    *          this path is only used if unzipping the SIP, otherwise source will
    *          be used
-   * @param ipFileExtension
-   *          file extension (e.g. .zip)
    */
   public static Path extractIPIfInZipFormat(final Path source, Path destinationDirectory) throws ParseException {
     Path ipFolderPath = destinationDirectory;

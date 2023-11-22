@@ -15,6 +15,8 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import javax.xml.XMLConstants;
@@ -28,14 +30,13 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 
+import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType.FLocat;
 import org.roda_project.commons_ip.mets_v1_11.beans.MdSecType.MdRef;
 import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
 import org.roda_project.commons_ip.mets_v1_11.beans.MetsType.MetsHdr.Agent;
-import org.roda_project.commons_ip.model.IPAgent;
-import org.roda_project.commons_ip.model.IPConstants;
-import org.roda_project.commons_ip.model.MetsWrapper;
+import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.METSEnums.LocType;
 import org.slf4j.Logger;
 import org.xml.sax.SAXException;
@@ -77,6 +78,60 @@ public final class METSUtils {
     }
 
     return tempMETSFile;
+  }
+
+  public static IPContentType getIPContentType(Mets mets, IPInterface ip) throws ParseException {
+    String metsType = mets.getTYPE();
+
+    if (StringUtils.isBlank(metsType)) {
+      throw new ParseException("METS 'TYPE' attribute does not contain any value");
+    }
+
+    String[] contentTypeParts = metsType.split(":");
+    if (contentTypeParts.length != 2 || StringUtils.isBlank(contentTypeParts[0])
+            || StringUtils.isBlank(contentTypeParts[1])) {
+      throw new ParseException("METS 'TYPE' attribute does not contain a valid value");
+    }
+
+    try {
+      IPEnums.IPType packageType = IPEnums.IPType.valueOf(contentTypeParts[0]);
+
+      if (ip instanceof SIP && IPEnums.IPType.SIP != packageType) {
+        throw new ParseException("METS 'TYPE' attribute should start with 'SIP:'");
+      } else if (ip instanceof AIP && IPEnums.IPType.AIP != packageType) {
+        throw new ParseException("METS 'TYPE' attribute should start with 'AIP:'");
+      }
+    } catch (IllegalArgumentException e) {
+      throw new ParseException("METS 'TYPE' attribute does not contain a valid package type");
+    }
+
+    return new IPContentType(contentTypeParts[1]);
+  }
+
+  public static List<IPAgent> getIpAgents(Mets mets) {
+    final List<IPAgent> ipAgentList = new ArrayList<>();
+    if (mets.getMetsHdr() != null && mets.getMetsHdr().getAgent() != null) {
+      for (Agent agent : mets.getMetsHdr().getAgent()) {
+        final IPAgent ipAgent = createIPAgent(agent);
+        ipAgentList.add(ipAgent);
+      }
+    }
+    return ipAgentList;
+  }
+
+  private static IPAgent createIPAgent(Agent agent) {
+    IPAgent ipAgent = new IPAgent();
+    METSEnums.CreatorType agentType;
+    try {
+      agentType = METSEnums.CreatorType.valueOf(agent.getTYPE());
+    } catch (IllegalArgumentException e) {
+      agentType = METSEnums.CreatorType.OTHER;
+      // Setting agent type to OTHER <- add Sip Validation?
+    }
+    ipAgent.setName(agent.getName()).setRole(agent.getROLE()).setOtherRole(agent.getOTHERROLE()).setType(agentType)
+            .setOtherType(agent.getOTHERTYPE());
+
+    return ipAgent;
   }
 
   public static void addMainMETSToZip(Map<String, ZipEntryInfo> zipEntries, MetsWrapper metsWrapper, String metsPath,
@@ -184,7 +239,7 @@ public final class METSUtils {
    * 
    * <p>
    * 20170511 hsilva: a global variable called
-   * {@link IPConstants.METS_ENCODE_AND_DECODE_HREF} is used to enable/disable
+   * {@link IPConstants#METS_ENCODE_AND_DECODE_HREF} is used to enable/disable
    * the effective decode (done this way to avoid lots of changes in the methods
    * that use this method)
    * </p>
@@ -205,7 +260,7 @@ public final class METSUtils {
    *
    * <p>
    * 20170511 hsilva: a global variable called
-   * {@link IPConstants.METS_ENCODE_AND_DECODE_HREF} is used to enable/disable
+   * {@link IPConstants#METS_ENCODE_AND_DECODE_HREF} is used to enable/disable
    * the effective encode (done this way to avoid lots of changes in the methods
    * that use this method). This method is not multi-thread safe when using
    * different SIP formats.

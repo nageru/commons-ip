@@ -242,21 +242,6 @@ public final class EARKMETSUtils {
     return agent;
   }
 
-  public static IPAgent createIPAgent(Agent agent) {
-    IPAgent ipAgent = new IPAgent();
-    CreatorType agentType;
-    try {
-      agentType = CreatorType.valueOf(agent.getTYPE());
-    } catch (IllegalArgumentException e) {
-      agentType = CreatorType.OTHER;
-      LOGGER.debug("Setting agent type to {}", agentType);
-    }
-    ipAgent.setName(agent.getName()).setRole(agent.getROLE()).setOtherRole(agent.getOTHERROLE()).setType(agentType)
-      .setOtherType(agent.getOTHERTYPE());
-
-    return ipAgent;
-  }
-
   public static MdRef addDescriptiveMetadataToMETS(MetsWrapper metsWrapper, IPDescriptiveMetadata descriptiveMetadata,
     String descriptiveMetadataPath) throws IPException, InterruptedException {
     return addMetadataToMETS(metsWrapper, descriptiveMetadata, descriptiveMetadataPath,

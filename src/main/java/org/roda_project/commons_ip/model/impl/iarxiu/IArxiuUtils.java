@@ -9,24 +9,22 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.jdom2.Element;
 import org.jdom2.IllegalDataException;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
+import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
 import org.roda_project.commons_ip.model.*;
-import org.roda_project.commons_ip.model.impl.ModelUtils;
-import org.roda_project.commons_ip.utils.FileZipEntryInfo;
-import org.roda_project.commons_ip.utils.ZIPUtils;
-import org.roda_project.commons_ip.utils.ZipEntryInfo;
+import org.roda_project.commons_ip.utils.METSUtils;
+import org.roda_project.commons_ip.utils.ValidationConstants;
+import org.roda_project.commons_ip.utils.ValidationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.SAXException;
 
+import javax.xml.bind.JAXBException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -35,13 +33,43 @@ import java.util.Map.Entry;
 public final class IArxiuUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(IArxiuUtils.class);
   private static final String METADATA_TYPE = "key-value";
-  protected static final String I_ARXIU_FILE_NAME = "iarxiu";
-  private static final String TXT_FILE_EXTENSION = ".txt";
 
   private IArxiuUtils() {
     // do nothing
   }
 
+  /** gets the main mets file from the root of the ip path
+   * validates if mets file found
+   * @param validation
+   * @param ipPath
+   * @return the main mets file path if found; null otherwise */
+  public static Path getMainMetsFile(ValidationReport validation, Path ipPath) {
+    final Path mainMETSFile = ipPath.resolve(IPConstants.METS_FILE);
+    if (Files.exists(mainMETSFile)) {
+      ValidationUtils.addInfo(validation, ValidationConstants.MAIN_METS_FILE_FOUND, ipPath, mainMETSFile);
+      return mainMETSFile;
+    } else {
+      ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_FILE_NOT_FOUND,
+              ValidationEntry.LEVEL.ERROR, ipPath, mainMETSFile);
+      return null;
+    }
+  }
+  /**
+   * extracts and validates the main mets from the main mets file
+   *
+   * @param validation updates the done validations
+   * @param ipPath
+   * @return if the mets parsed null otherwise
+   */
+  public static Mets parseMainMets(ValidationReport validation, Path ipPath, Path mainMETSFile) {
+      try {
+        return METSUtils.instantiateMETSFromFile(mainMETSFile);
+      } catch (JAXBException | SAXException e) {
+        ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_NOT_VALID,
+                ValidationEntry.LEVEL.ERROR, e, ipPath, mainMETSFile);
+        return null;
+      }
+  }
   public static IPDescriptiveMetadata createIArxiuMetadata(Map<String, String> metadata, Path metadataPath) {
     return createIArxiuMetadata(metadata, new ArrayList<>(), metadataPath);
   }
@@ -106,30 +134,5 @@ public final class IArxiuUtils {
     XMLOutputter outter = new XMLOutputter();
     outter.setFormat(Format.getPrettyFormat());
     return outter.outputString(doc);
-  }
-  protected static Path extractIArxiuIPIfInZipFormat(final Path source, Path destinationDirectory)
-          throws ParseException {
-    Path iArxiuFolderPath = destinationDirectory;
-    if (!Files.isDirectory(source)) {
-      try {
-        ZIPUtils.unzip(source, destinationDirectory);
-
-        if (Files.exists(destinationDirectory)
-                && !Files.exists(destinationDirectory.resolve(I_ARXIU_FILE_NAME + TXT_FILE_EXTENSION))) {
-          try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(destinationDirectory)) {
-            for (Path path : directoryStream) {
-              if (Files.isDirectory(path) && Files.exists(path.resolve(I_ARXIU_FILE_NAME + TXT_FILE_EXTENSION))) {
-                iArxiuFolderPath = path;
-                break;
-              }
-            }
-          }
-        }
-      } catch (IOException e) {
-        throw new ParseException("Error unzipping file", e);
-      }
-    }
-
-    return iArxiuFolderPath;
   }
 }

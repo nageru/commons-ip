@@ -1,6 +1,5 @@
 package org.roda_project.commons_ip.model.iarxiu;
 
-import com.sun.istack.NotNull;
 import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -35,9 +34,9 @@ public class IArxiuTest {
   }
 
   @Test
-  public void buildAndParseIArxiuSIP() throws IPException, InterruptedException, ParseException {
+  public void readAndParseIArxiuSIP() throws ParseException {
     LOGGER.info("Creating iArxiu SIP");
-    Path iArxiuSIP = readIArxiuSIP("bagItSIP_1.zip"); // still using 'bagIt' reader // TODO 'cesca_earxiu1.zip'
+    Path iArxiuSIP = readIArxiuSIP("cesca_earxiu1.zip");
     Assert.assertNotNull(iArxiuSIP);
     LOGGER.info("Done reading iArxiu SIP");
 
