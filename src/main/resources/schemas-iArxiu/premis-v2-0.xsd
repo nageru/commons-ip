@@ -337,7 +337,7 @@ See comment for "creatingApplicationComplexType"
 				<xs:element ref="eventOutcomeDetailNote" minOccurs="1" maxOccurs="1"/>
 				<xs:element ref="eventOutcomeDetailExtension" minOccurs="0" maxOccurs="1"/>
 			</xs:sequence>
-			<xs:element ref="eventOutcomeDetailExtension" minOccurs="1" maxOccurs="1"/>
+			<xs:element ref="eventOutcomeDetailExtension" minOccurs="0" maxOccurs="1"/>
 		</xs:choice>
 	</xs:complexType>
 	<!--
