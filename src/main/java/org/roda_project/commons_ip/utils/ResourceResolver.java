@@ -26,6 +26,8 @@ public class ResourceResolver implements LSResourceResolver {
   private static Map<String, String> internalResources = new HashMap<>();
   static {
     internalResources.put("http://www.loc.gov/standards/xlink/xlink.xsd", "schemas/xlink.xsd");
+    internalResources.put("info:lc/xmlns/premis-v2", "schemas-iArxiu/premis-v2-0.xsd");
+
   }
 
   @Override

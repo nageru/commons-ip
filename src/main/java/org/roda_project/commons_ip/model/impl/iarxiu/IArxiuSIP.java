@@ -13,6 +13,9 @@ import org.roda_project.commons_ip.utils.ZIPUtils; // TODO commons_ip2.utils.ZIP
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -86,72 +89,33 @@ public class IArxiuSIP extends SIP {
     sip.setBasePath(sipPath);
 
     final ValidationReport validationReport = sip.getValidationReport();
-    if (true) { /* reading same as from EARK SIP */
-      final Path mainMetsFile = IArxiuUtils.getMainMetsFile(validationReport, sipPath);
-      if (mainMetsFile != null && validationReport.isValid()) {
-        final Mets mainMets = IArxiuUtils.parseMainMets(validationReport, sipPath, mainMetsFile);
-        if (mainMets != null && validationReport.isValid()) {
+    final Path mainMetsFile = IArxiuUtils.getMainMetsFile(validationReport, sipPath);
+    if (mainMetsFile != null && validationReport.isValid()) {
+      final Mets mainMets = IArxiuUtils.parseMainMets(validationReport, sipPath, mainMetsFile);
+      if (mainMets != null && validationReport.isValid()) {
 
-          sip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
-          final MetsType.MetsHdr metsHdr = mainMets.getMetsHdr();
-          if (metsHdr != null) {
-            sip.setCreateDate(metsHdr.getCREATEDATE());
-            sip.setModificationDate(metsHdr.getLASTMODDATE());
-            sip.setStatus(IPEnums.IPStatus.parse(metsHdr.getRECORDSTATUS()));
-          } else {
-            LOGGER.warn("iArxiu sip '{}' contains no headers in the main mets file: {}", sipPath, mainMetsFile);
-          }
+        sip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
 
-          final IPContentType ipContentType = METSUtils.getIPContentType(mainMets, sip);
-          sip.setContentType(ipContentType);
-
-          METSUtils.getIpAgents(mainMets).forEach(ipAgent -> sip.addAgent(ipAgent));
-
-          ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
+        final MetsType.MetsHdr metsHdr = mainMets.getMetsHdr();
+        if (metsHdr != null) {
+          sip.setCreateDate(metsHdr.getCREATEDATE());
+          sip.setModificationDate(metsHdr.getLASTMODDATE());
+          sip.setStatus(IPEnums.IPStatus.parse(metsHdr.getRECORDSTATUS()));
+        } else {
+          LOGGER.info("iArxiu sip '{}' contains no headers in the main mets file: {}", sipPath, mainMetsFile);
+          final XMLGregorianCalendar currentDateTime = Utils.getCurrentTime().orElse(null);
+          sip.setCreateDate(currentDateTime);
+          sip.setModificationDate(currentDateTime);
+          sip.setStatus(IPEnums.IPStatus.NEW);
         }
+
+        final IPContentType ipContentType = IArxiuUtils.getSipContentType(mainMets);
+        sip.setContentType(ipContentType);
+
+        METSUtils.getIpAgents(mainMets).forEach(ipAgent -> sip.addAgent(ipAgent));
+
+        ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
       }
-    }
-
-    /* Sample from BagIt <- TODO doing as from BagIt? */
-    if (false) {
-      Map<String, String> metadataMap = new HashMap<>();
-      // loads from reader
-      sip.setAncestors(Arrays.asList("")); // IPConstants.PARENT_KEY
-      sip.setId(""); // value <- IPConstants.ID_KEY
-      metadataMap.put("", ""); // <- key, value
-
-      // loads from read map
-      final String vendor = metadataMap.get(IPConstants.VENDOR_KEY);
-
-      final Path metadataPath = destinationDirectory.resolve(Utils.generateRandomAndPrefixedUUID());
-      try {
-        sip.addDescriptiveMetadata(IArxiuUtils.createIArxiuMetadata(metadataMap, metadataPath));
-
-        final Map<String, IPRepresentation> representations = new HashMap<>();
-        String representationId = "rep1";
-
-        final Path destPath = null;
-        final List<String> directoryPath = new ArrayList<>();
-        IPFile file = new IPFile(destPath, directoryPath);
-        IPRepresentation representation = new IPRepresentation();
-        representation.addFile(file);
-
-        sip.addRepresentation(representation); // <- representations.values()
-      } catch (IPException e) {
-        throw new ParseException("Error parsing iArxiu SIP", e);
-      }
-
-      /* try ... IPRepresentation destPath:
-             try (InputStream bagStream = Files.newInputStream(payload);
-                OutputStream destStream = Files.newOutputStream(destPath)) {
-                IOUtils.copyLarge(bagStream, destStream);
-              }
-      ... catch (MissingPayloadManifestException | MissingBagitFileException | InterruptedException
-             | FileNotInPayloadDirectoryException | InvalidBagitFileFormatException | VerificationException
-             | UnsupportedAlgorithmException | CorruptChecksumException | MaliciousPathException
-             | MissingPayloadDirectoryException e) {
-        throw new ParseException("Error validating iArxiu SIP", e);
-      }*/
     }
 
     return sip;

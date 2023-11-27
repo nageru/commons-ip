@@ -55,14 +55,13 @@ public final class Utils {
   }
 
   public static Optional<XMLGregorianCalendar> getCurrentTime() {
-    Optional<XMLGregorianCalendar> res = Optional.empty();
     try {
-      GregorianCalendar c = new GregorianCalendar();
-      Optional.of(DatatypeFactory.newInstance().newXMLGregorianCalendar(c));
+      final GregorianCalendar c = new GregorianCalendar();
+      return Optional.of(DatatypeFactory.newInstance().newXMLGregorianCalendar(c));
     } catch (DatatypeConfigurationException e) {
       // do nothing & return empty
+      return Optional.empty();
     }
-    return res;
   }
 
   public static XMLGregorianCalendar getCurrentCalendar() throws DatatypeConfigurationException {

@@ -47,10 +47,17 @@ public final class METSUtils {
     // do nothing
   }
 
-  public static Mets instantiateMETSFromFile(Path metsFile) throws JAXBException, SAXException {
-    return unmarshallMETS(getMETSUnmarshaller(), metsFile);
+  public static Mets instantiateMETS1_11FromFile(Path metsFile) throws JAXBException, SAXException {
+    return instantiateMETSFromFile(metsFile, "/schemas/mets1_11.xsd");
   }
 
+  public static Mets instantiateIArxiuMETSFromFile(Path metsFile) throws JAXBException, SAXException {
+    return instantiateMETSFromFile(metsFile, "/schemas-iArxiu/mets.xsd" );
+  }
+
+  public static Mets instantiateMETSFromFile(Path metsFile, String... schemaFiles) throws JAXBException, SAXException {
+    return unmarshallMETS(getMETSUnmarshaller(schemaFiles), metsFile);
+  }
   public static Mets instantiateRelaxedMETSFromFile(Path metsFile) throws JAXBException, SAXException {
     return unmarshallMETS(getRelaxedMETSUnmarshaller(), metsFile);
   }
@@ -59,14 +66,17 @@ public final class METSUtils {
     return (Mets) unmarshaller.unmarshal(metsFile.toFile());
   }
 
-  private static Unmarshaller getMETSUnmarshaller() throws JAXBException, SAXException {
+  private static Unmarshaller getMETSUnmarshaller(String... schemaFiles) throws JAXBException, SAXException {
     final Unmarshaller jaxbUnmarshaller = getRelaxedMETSUnmarshaller();
-    InputStream metsSchemaInputStream = METSUtils.class.getResourceAsStream("/schemas/mets1_11.xsd");
-    Source metsSchemaSource = new StreamSource(metsSchemaInputStream);
-    SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+
+    final SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
     factory.setResourceResolver(new ResourceResolver());
-    Schema schema = factory.newSchema(metsSchemaSource);
-    jaxbUnmarshaller.setSchema(schema);
+
+    for (String schemaFile: schemaFiles) {
+        final Source metsSchemaSource = new StreamSource(METSUtils.class.getResourceAsStream(schemaFile));
+        jaxbUnmarshaller.setSchema(factory.newSchema(metsSchemaSource));
+    }
+
     return jaxbUnmarshaller;
   }
   private static Unmarshaller getRelaxedMETSUnmarshaller() throws JAXBException {

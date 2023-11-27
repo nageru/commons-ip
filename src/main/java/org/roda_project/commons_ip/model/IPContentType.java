@@ -15,7 +15,9 @@ public class IPContentType implements Serializable {
   private static final long serialVersionUID = 1191075605637022551L;
 
   public enum IPContentTypeEnum {
-    SFSB, RDB, ERMS, GEODATA, MIXED, OTHER;
+    SFSB, RDB, ERMS, GEODATA, MIXED,
+    PL_EXPEDIENT, // urn:iarxiu:2.0:templates:cesca:PL_Expedient
+    OTHER
   }
 
   private IPContentTypeEnum type;
@@ -27,11 +29,15 @@ public class IPContentType implements Serializable {
    * 'type' parameter
    */
   public IPContentType(final String type) {
+    this(type, IPContentTypeEnum.OTHER);
+  }
+
+  public IPContentType(final String type, IPContentTypeEnum defaultValue) {
     try {
       this.type = IPContentTypeEnum.valueOf(type);
       this.otherType = "";
     } catch (IllegalArgumentException | NullPointerException e) {
-      this.type = IPContentTypeEnum.OTHER;
+      this.type = defaultValue;
       this.otherType = type;
     }
   }

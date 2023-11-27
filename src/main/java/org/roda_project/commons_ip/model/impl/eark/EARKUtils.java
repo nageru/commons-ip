@@ -279,7 +279,7 @@ public final class EARKUtils {
     if (Files.exists(mainMETSFile)) {
       ValidationUtils.addInfo(ip.getValidationReport(), ValidationConstants.MAIN_METS_FILE_FOUND, ipPath, mainMETSFile);
       try {
-        mainMets = METSUtils.instantiateMETSFromFile(mainMETSFile);
+        mainMets = METSUtils.instantiateMETS1_11FromFile(mainMETSFile);
         ip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
         ip.setCreateDate(mainMets.getMetsHdr().getCREATEDATE());
         ip.setModificationDate(mainMets.getMetsHdr().getLASTMODDATE());
@@ -324,7 +324,7 @@ public final class EARKUtils {
       ValidationUtils.addInfo(ip.getValidationReport(), ValidationConstants.REPRESENTATION_METS_FILE_FOUND,
         ip.getBasePath(), representationMetsFile);
       try {
-        representationMets = METSUtils.instantiateMETSFromFile(representationMetsFile);
+        representationMets = METSUtils.instantiateMETS1_11FromFile(representationMetsFile);
         setRepresentationContentType(representationMets, representation);
         ValidationUtils.addInfo(ip.getValidationReport(), ValidationConstants.REPRESENTATION_METS_IS_VALID,
           ip.getBasePath(), representationMetsFile);

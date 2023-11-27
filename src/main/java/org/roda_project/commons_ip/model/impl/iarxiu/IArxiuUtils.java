@@ -9,6 +9,7 @@ import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
 import org.apache.commons.configuration2.builder.fluent.Configurations;
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringEscapeUtils;
 import org.jdom2.Element;
 import org.jdom2.IllegalDataException;
@@ -63,12 +64,39 @@ public final class IArxiuUtils {
    */
   public static Mets parseMainMets(ValidationReport validation, Path ipPath, Path mainMETSFile) {
       try {
-        return METSUtils.instantiateRelaxedMETSFromFile(mainMETSFile);
+        return METSUtils.instantiateIArxiuMETSFromFile(mainMETSFile);
       } catch (JAXBException | SAXException e) {
         ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_NOT_VALID,
                 ValidationEntry.LEVEL.ERROR, e, ipPath, mainMETSFile);
         return null;
       }
+  }
+
+  public static IPContentType getSipContentType(Mets mets) throws ParseException {
+    final String metsType = mets.getTYPE();
+
+    if (StringUtils.isBlank(metsType)) {
+      throw new ParseException("METS 'TYPE' attribute does not contain any value");
+    }
+
+    final String[] contentTypeParts = metsType.split(":");
+    if (contentTypeParts.length == 0) {
+      throw new ParseException("METS 'TYPE' attribute does not contain a valid value: " + metsType);
+    }
+
+    final String packageTye;
+    if (contentTypeParts.length > 1) {
+      packageTye = Arrays.toString(Arrays.copyOf(contentTypeParts, contentTypeParts.length - 1));
+    } else {
+      packageTye = null;
+    }
+    final String contentType = contentTypeParts[contentTypeParts.length - 1];
+    final IPContentType ipContentType = new IPContentType(contentType, IPContentType.IPContentTypeEnum.PL_EXPEDIENT);
+    if (StringUtils.isNotBlank(ipContentType.getOtherType())){
+      LOGGER.warn("Unknown SIP content type; set default '{}' from '{}' package", ipContentType, packageTye);
+    }
+
+    return ipContentType;
   }
   public static IPDescriptiveMetadata createIArxiuMetadata(Map<String, String> metadata, Path metadataPath) {
     return createIArxiuMetadata(metadata, new ArrayList<>(), metadataPath);

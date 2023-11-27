@@ -61,7 +61,7 @@ public class EARKTest {
   public void buildAndParseEARKSIP() throws IPException, ParseException, InterruptedException {
     LOGGER.info("Creating full E-ARK SIP");
     Path zipSIP = createFullEARKSIP();
-    LOGGER.info("Done creating full E-ARK SIP");
+    LOGGER.info("Done creating full E-ARK SIP: {}", zipSIP);
 
     LOGGER.info("Parsing (and validating) full E-ARK SIP");
     parseAndValidateFullEARKSIP(zipSIP);
