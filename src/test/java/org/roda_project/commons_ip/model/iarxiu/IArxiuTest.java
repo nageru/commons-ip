@@ -8,6 +8,7 @@ import org.junit.Test;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.model.impl.iarxiu.IArxiuSIP;
 import org.roda_project.commons_ip.utils.IPException;
+import org.roda_project.commons_ip.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +31,7 @@ public class IArxiuTest {
 
   @AfterClass
   public static void cleanup() throws Exception {
-    //Utils.deletePath(tempFolder);
+    Utils.deletePath(tempFolder);
   }
 
   @Test

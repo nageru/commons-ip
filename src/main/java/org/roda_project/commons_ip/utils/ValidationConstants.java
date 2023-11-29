@@ -33,7 +33,13 @@ public final class ValidationConstants {
   public static final String REPRESENTATION_HAS_NO_FILES = "Representation has no files.";
 
   // Mets structmap related
-  public static final String MAIN_METS_HAS_NO_E_ARK_STRUCT_MAP = "Main METS.xml file has no E-ARK structural map.";
+  private static final String MAIN_METS_HAS_NO_STRUCT_MAP_FORMAT = "Main METS.xml file has no %s structural map.";
+
+  // iArxiu
+  public static final String MAIN_METS_HAS_NO_I_ARXIU_STRUCT_MAP = String.format(MAIN_METS_HAS_NO_STRUCT_MAP_FORMAT, "iArxiu");
+
+  // EARK
+  public static final String MAIN_METS_HAS_NO_E_ARK_STRUCT_MAP = String.format(MAIN_METS_HAS_NO_STRUCT_MAP_FORMAT, "E-ARK");
   public static final String MAIN_METS_HAS_E_ARK_STRUCT_MAP = "Main METS.xml file has E-ARK structural map.";
   public static final String REPRESENTATION_METS_HAS_NO_E_ARK_STRUCT_MAP = "Representation METS.xml file has no E-ARK structural map.";
   public static final String REPRESENTATION_METS_HAS_E_ARK_STRUCT_MAP = "Representation METS.xml file has E-ARK structural map.";

@@ -7,29 +7,6 @@
  */
 package org.roda_project.commons_ip.utils;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import javax.xml.XMLConstants;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
-import javax.xml.datatype.DatatypeConfigurationException;
-import javax.xml.transform.Source;
-import javax.xml.transform.stream.StreamSource;
-import javax.xml.validation.Schema;
-import javax.xml.validation.SchemaFactory;
-
 import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType.FLocat;
@@ -40,6 +17,26 @@ import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.METSEnums.LocType;
 import org.slf4j.Logger;
 import org.xml.sax.SAXException;
+
+import javax.xml.XMLConstants;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+import javax.xml.bind.Unmarshaller;
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.transform.Source;
+import javax.xml.transform.stream.StreamSource;
+import javax.xml.validation.SchemaFactory;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public final class METSUtils {
 
@@ -134,7 +131,7 @@ public final class METSUtils {
     return new IPContentType(contentTypeParts[1]);
   }
 
-  public static List<IPAgent> getIpAgents(Mets mets) {
+  public static List<IPAgent> getHeaderIpAgents(Mets mets) {
     final List<IPAgent> ipAgentList = new ArrayList<>();
     if (mets.getMetsHdr() != null && mets.getMetsHdr().getAgent() != null) {
       for (Agent agent : mets.getMetsHdr().getAgent()) {

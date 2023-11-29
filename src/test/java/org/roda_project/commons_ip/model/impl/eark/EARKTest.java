@@ -64,9 +64,36 @@ public class EARKTest {
     LOGGER.info("Done creating full E-ARK SIP: {}", zipSIP);
 
     LOGGER.info("Parsing (and validating) full E-ARK SIP");
-    parseAndValidateFullEARKSIP(zipSIP);
+    final List<IPRepresentation> representations = parseAndValidateFullEARKSIP(2, zipSIP);
     LOGGER.info("Done parsing (and validating) full E-ARK SIP");
 
+    // assess representations status
+    Assert.assertThat(representations.get(0).getStatus().asString(),
+            Is.is(RepresentationStatus.getORIGINAL().asString()));
+    Assert.assertThat(representations.get(1).getStatus().asString(), Is.is(REPRESENTATION_STATUS_NORMALIZED));
+
+  }
+
+  @Test
+  public void readAndParseEARKSIP() throws ParseException {
+    LOGGER.info("Creating E-ARK SIP");
+    Path zipSIP = readIArxiuSIP("eARK1-SIP - uuid-eb977e52-66d8-4821-b8b4-bc5e4989729e.zip");
+    Assert.assertNotNull(zipSIP);
+    LOGGER.info("Done reading E-ARK SIP: {}", zipSIP);
+
+    LOGGER.info("Parsing (and validating) full E-ARK SIP");
+    final List<IPRepresentation> representations = parseAndValidateFullEARKSIP(1, zipSIP);
+    LOGGER.info("Done parsing (and validating) full E-ARK SIP");
+
+    // assess representations status
+    Assert.assertThat(representations.get(0).getStatus().asString(),
+            Is.is(RepresentationStatus.getORIGINAL().asString()));
+
+  }
+
+  private static Path readIArxiuSIP(String earkZipName) {
+    Path zipSIP = Paths.get("src/test/resources/eark").resolve(earkZipName);
+    return zipSIP;
   }
 
   private Path createFullEARKSIP() throws IPException, InterruptedException {
@@ -164,7 +191,7 @@ public class EARKTest {
     return zipSIP;
   }
 
-  private void parseAndValidateFullEARKSIP(Path zipSIP) throws ParseException {
+  private List<IPRepresentation> parseAndValidateFullEARKSIP(int expectRepresentations, Path zipSIP) throws ParseException {
 
     // 1) invoke static method parse and that's it
     SIP earkSIP = EARKSIP.parse(zipSIP, tempFolder);
@@ -176,15 +203,12 @@ public class EARKTest {
 
     // assess # of representations
     List<IPRepresentation> representations = earkSIP.getRepresentations();
-    Assert.assertThat(representations.size(), Is.is(2));
-
-    // assess representations status
-    Assert.assertThat(representations.get(0).getStatus().asString(),
-      Is.is(RepresentationStatus.getORIGINAL().asString()));
-    Assert.assertThat(representations.get(1).getStatus().asString(), Is.is(REPRESENTATION_STATUS_NORMALIZED));
+    Assert.assertThat(representations.size(), Is.is(expectRepresentations));
 
     LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", earkSIP.getId(),
       earkSIP.getValidationReport().isValid());
+
+    return representations;
   }
 
 }

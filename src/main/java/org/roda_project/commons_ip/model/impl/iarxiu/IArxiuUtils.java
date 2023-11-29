@@ -16,6 +16,7 @@ import org.jdom2.IllegalDataException;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
 import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
+import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.METSUtils;
 import org.roda_project.commons_ip.utils.ValidationConstants;
@@ -30,6 +31,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
+
+import static org.roda_project.commons_ip.model.IPConstants.COMMON_SPEC_STRUCTURAL_MAP_ID;
 
 public final class IArxiuUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(IArxiuUtils.class);
@@ -98,6 +102,40 @@ public final class IArxiuUtils {
 
     return ipContentType;
   }
+
+
+  protected static StructMapType getMainMetsStructMap(MetsWrapper metsWrapper, IPInterface ip) {
+    final Mets mets = metsWrapper.getMets();
+
+    final List<StructMapType> metsStructMapList = mets.getStructMap().stream().filter(structMapType -> {
+      final String structMapTypeId = structMapType.getID();
+      final boolean foundValidId = COMMON_SPEC_STRUCTURAL_MAP_ID.equalsIgnoreCase(structMapTypeId);
+      if (!foundValidId) {
+        LOGGER.warn("Main METS.xml file has not recognized structural map id: '{}'", structMapTypeId);
+      }
+      return foundValidId;
+    }).collect(Collectors.toList());
+
+    final StructMapType structMap;
+    final long smCount = metsStructMapList.size();
+    if (smCount == 0) {
+      LOGGER.error("Main METS.xml file has no structural map for IArxiu '{}' ID", COMMON_SPEC_STRUCTURAL_MAP_ID);
+      structMap = null;
+      ValidationUtils.addIssue(ip.getValidationReport(),
+              ValidationConstants.MAIN_METS_HAS_NO_I_ARXIU_STRUCT_MAP,
+              ValidationEntry.LEVEL.ERROR, structMap, ip.getBasePath(), metsWrapper.getMetsPath());
+    } else {
+      structMap = metsStructMapList.remove(0);
+      if (smCount > 1){
+        LOGGER.warn("Main METS.xml file has too many ({}) structural map. Will take first only! Ignored: {}", smCount, metsStructMapList);
+      }
+      ValidationUtils.addInfo(ip.getValidationReport(),
+              ValidationConstants.MAIN_METS_HAS_E_ARK_STRUCT_MAP,
+              structMap, ip.getBasePath(), metsWrapper.getMetsPath());
+    }
+    return structMap;
+  }
+
   public static IPDescriptiveMetadata createIArxiuMetadata(Map<String, String> metadata, Path metadataPath) {
     return createIArxiuMetadata(metadata, new ArrayList<>(), metadataPath);
   }

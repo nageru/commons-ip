@@ -90,7 +90,7 @@ public final class IPConstants {
   public static final String DATA_FOLDER_KEY = "data";
   public static final String VENDOR_COMMONS_IP_KEY = "commons-ip";
 
-
+  public static final String COMMON_SPEC_STRUCTURAL_MAP_ID = "structMap";
 
   // Bagit
   public static final String BAGIT_PARENT = "parent";

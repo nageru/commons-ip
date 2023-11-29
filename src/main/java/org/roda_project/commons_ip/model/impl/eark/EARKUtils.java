@@ -305,7 +305,7 @@ public final class EARKUtils {
   }
 
   public static Mets addAgentsToMETS(Mets mets, IPInterface ip, IPRepresentation representation) {
-    final List<IPAgent> ipAgentList = METSUtils.getIpAgents(mets);
+    final List<IPAgent> ipAgentList = METSUtils.getHeaderIpAgents(mets);
     for (IPAgent ipAgent : ipAgentList) {
       if (representation == null) {
         ip.addAgent(ipAgent);

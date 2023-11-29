@@ -7,14 +7,13 @@ package org.roda_project.commons_ip.model.impl.iarxiu;
 
 import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
 import org.roda_project.commons_ip.mets_v1_11.beans.MetsType;
+import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.*;
 import org.roda_project.commons_ip.utils.ZIPUtils; // TODO commons_ip2.utils.ZIPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.datatype.DatatypeConfigurationException;
-import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -83,40 +82,89 @@ public class IArxiuSIP extends SIP {
 
   private static SIP parseIArxiu(final Path source, final Path destinationDirectory) throws ParseException {
     IPConstants.METS_ENCODE_AND_DECODE_HREF = true; // anti-pattern: not valid for multithreading
-    final SIP sip = new IArxiuSIP();
 
+    final SIP sip = new IArxiuSIP();
     final Path sipPath = ZIPUtils.extractIPIfInZipFormat(source, destinationDirectory);
     sip.setBasePath(sipPath);
 
     final ValidationReport validationReport = sip.getValidationReport();
     final Path mainMetsFile = IArxiuUtils.getMainMetsFile(validationReport, sipPath);
-    if (mainMetsFile != null && validationReport.isValid()) {
-      final Mets mainMets = IArxiuUtils.parseMainMets(validationReport, sipPath, mainMetsFile);
-      if (mainMets != null && validationReport.isValid()) {
-
-        sip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
-
-        final MetsType.MetsHdr metsHdr = mainMets.getMetsHdr();
-        if (metsHdr != null) {
-          sip.setCreateDate(metsHdr.getCREATEDATE());
-          sip.setModificationDate(metsHdr.getLASTMODDATE());
-          sip.setStatus(IPEnums.IPStatus.parse(metsHdr.getRECORDSTATUS()));
-        } else {
-          LOGGER.info("iArxiu sip '{}' contains no headers in the main mets file: {}", sipPath, mainMetsFile);
-          final XMLGregorianCalendar currentDateTime = Utils.getCurrentTime().orElse(null);
-          sip.setCreateDate(currentDateTime);
-          sip.setModificationDate(currentDateTime);
-          sip.setStatus(IPEnums.IPStatus.NEW);
-        }
-
-        final IPContentType ipContentType = IArxiuUtils.getSipContentType(mainMets);
-        sip.setContentType(ipContentType);
-
-        METSUtils.getIpAgents(mainMets).forEach(ipAgent -> sip.addAgent(ipAgent));
-
-        ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
-      }
+    if (!validationReport.isValid()) {
+      return sip;
     }
+
+    final Mets mainMets = IArxiuUtils.parseMainMets(validationReport, sipPath, mainMetsFile);
+    if (!validationReport.isValid()){
+      return sip;
+    }
+
+    final MetsWrapper mainMetsWrapper = new MetsWrapper(mainMets, mainMetsFile);
+
+    sip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
+
+    final MetsType.MetsHdr metsHdr = mainMets.getMetsHdr();
+    if (metsHdr != null) {
+      sip.setCreateDate(metsHdr.getCREATEDATE());
+      sip.setModificationDate(metsHdr.getLASTMODDATE());
+      sip.setStatus(IPEnums.IPStatus.parse(metsHdr.getRECORDSTATUS()));
+    } else {
+      LOGGER.info("iArxiu sip '{}' contains no headers in the main mets file: {}", sipPath, mainMetsFile);
+      final XMLGregorianCalendar currentDateTime = Utils.getCurrentTime().orElse(null);
+      sip.setCreateDate(currentDateTime);
+      sip.setModificationDate(currentDateTime);
+      sip.setStatus(IPEnums.IPStatus.NEW);
+    }
+
+    final IPContentType ipContentType = IArxiuUtils.getSipContentType(mainMets);
+    sip.setContentType(ipContentType);
+
+    METSUtils.getHeaderIpAgents(mainMets).forEach(ipAgent -> sip.addAgent(ipAgent));
+
+    final StructMapType structMap = IArxiuUtils.getMainMetsStructMap(mainMetsWrapper, sip);
+    if (!sip.isValid()) {
+      return sip;
+    }
+    // TODO EARKUtils.preProcessStructMap(metsWrapper, structMap);
+
+    /* TODO
+     mets:structMap
+      mets:div DMDID="EXP_1 EXP_1_DC"
+        mets:div DMDID="DOC_1 DOC_1_DC" LABEL="index.xml"
+          mets:div LABEL="index.xml"
+            mets:fptr FILEID="BIN_1_GRP"
+     EARK:
+     <structMap ID="uuid-C3C0F7C8-D8FA-43E8-A06F-1165C6CC2383" TYPE="physical" LABEL="Common Specification structural map">
+      structMap ID
+        div ID="...
+          div ID="
+            div ID="
+              <fptr FILEID="dc.xml"/>
+
+      TODO ignore
+          <structMap ID="uuid-0D8F99F6-2D5C-4F7B-9320-937B4F43683D" LABEL="RODA structural map">
+            <div ..
+              <mptr xlink:type="simple" xlink:href="representations%2Frep1%2FMETS.xml" LOCTYPE="URL"/>
+     */
+
+    ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
+
+    /*
+      EARKUtils.processOtherMetadata(metsWrapper, sip, LOGGER, null, sip.getBasePath());
+      EARKUtils.processPreservationMetadata(metsWrapper, sip, LOGGER, null, sip.getBasePath());
+      EARKUtils.processRepresentations(metsWrapper, sip, LOGGER);
+      EARKUtils.processSchemasMetadata(metsWrapper, sip, sip.getBasePath());
+      EARKUtils.processDocumentationMetadata(metsWrapper, sip, sip.getBasePath());
+      EARKUtils.processAncestors(metsWrapper, sip);
+     */
+
+   /* TODO read descriptiveMetadata -> dmdSec : Voc_document_exp:
+         <-  ¿EARK processDescriptiveMetadata ?
+    */
+    /* TODO read descriptiveMetadata -> dmdSec : www.openarchives.org/OAI/2.0/oai_dc/ : <- EARK metadata/descriptive/dc.xml
+        <- EARKUtils.processDescriptiveMetadata(metsWrapper, sip, LOGGER, null, sip.getBasePath());
+     */
+
+    // TODO mets:fileSec <- mets:fileGrp ¿processDocumentationMetadata?
 
     return sip;
   }
