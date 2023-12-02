@@ -8,32 +8,33 @@
 package org.roda_project.commons_ip.model.impl.eark;
 
 import org.apache.commons.lang3.StringUtils;
-import org.roda_project.commons_ip.mets_v1_11.beans.DivType;
+import org.roda_project.commons_ip.mets_v1_11.beans.*;
 import org.roda_project.commons_ip.mets_v1_11.beans.DivType.Fptr;
 import org.roda_project.commons_ip.mets_v1_11.beans.DivType.Mptr;
-import org.roda_project.commons_ip.mets_v1_11.beans.FileType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType.FLocat;
 import org.roda_project.commons_ip.mets_v1_11.beans.MdSecType.MdRef;
-import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
-import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
 import org.roda_project.commons_ip.model.*;
+import org.roda_project.commons_ip.model.impl.CommonSipUtils;
 import org.roda_project.commons_ip.model.impl.ModelUtils;
 import org.roda_project.commons_ip.utils.*;
 import org.roda_project.commons_ip.utils.IPEnums.IPStatus;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
 import javax.xml.bind.JAXBException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.roda_project.commons_ip.model.impl.CommonSipUtils.validateFileType;
 
 public final class EARKUtils {
   protected static boolean VALIDATION_FAIL_IF_REPRESENTATION_METS_DOES_NOT_HAVE_TWO_PARTS = false;
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(EARKUtils.class);
 
   private EARKUtils() {
     // do nothing
@@ -540,7 +541,7 @@ public final class EARKUtils {
         String dmdVersion = null;
         try {
           dmdVersion = mdRef.getMDTYPEVERSION();
-          if (StringUtils.isNotBlank(mdRef.getOTHERMDTYPE())) {
+          if (isNotBlank(mdRef.getOTHERMDTYPE())) {
             dmdType.setOtherType(mdRef.getOTHERMDTYPE());
           }
           logger.debug("Metadata type valid: {}", dmdType);
@@ -580,11 +581,6 @@ public final class EARKUtils {
     }
   }
 
-  protected static Optional<IPFile> validateFile(IPInterface ip, Path filePath, FileType fileType,
-    List<String> fileRelativeFolders) {
-    return Utils.validateFile(ip, filePath, fileRelativeFolders, fileType.getCHECKSUM(), fileType.getCHECKSUMTYPE(),
-      fileType.getID());
-  }
 
   protected static Optional<IPFile> validateMetadataFile(IPInterface ip, Path filePath, MdRef mdRef,
     List<String> fileRelativeFolders) {
@@ -592,52 +588,13 @@ public final class EARKUtils {
       mdRef.getID());
   }
 
-  protected static IPInterface processFile(IPInterface ip, DivType div, String folder, Path basePath)
-    throws IPException {
+  protected static IPInterface processFile(IPInterface ip, DivType div, String folder, Path basePath) {
     if (div != null && div.getFptr() != null) {
       for (Fptr fptr : div.getFptr()) {
         FileType fileType = (FileType) fptr.getFILEID();
-
-        if (fileType.getFLocat() != null) {
-          FLocat fLocat = fileType.getFLocat().get(0);
-          String href = Utils.extractedRelativePathFromHref(fLocat.getHref());
-          Path filePath = basePath.resolve(href);
-
-          if (Files.exists(filePath)) {
-            List<String> fileRelativeFolders = Utils.getFileRelativeFolders(basePath.resolve(folder), filePath);
-            Optional<IPFile> file = validateFile(ip, filePath, fileType, fileRelativeFolders);
-
-            if (file.isPresent()) {
-              if (IPConstants.SCHEMAS.equalsIgnoreCase(folder)) {
-                ValidationUtils.addInfo(ip.getValidationReport(),
-                  ValidationConstants.SCHEMA_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
-                ip.addSchema(file.get());
-              } else if (IPConstants.DOCUMENTATION.equalsIgnoreCase(folder)) {
-                ValidationUtils.addInfo(ip.getValidationReport(),
-                  ValidationConstants.DOCUMENTATION_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
-                ip.addDocumentation(file.get());
-              } else if (IPConstants.SUBMISSION.equalsIgnoreCase(folder) && ip instanceof AIP) {
-                ValidationUtils.addInfo(ip.getValidationReport(),
-                  ValidationConstants.SUBMISSION_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
-                ((AIP) ip).addSubmission(file.get());
-              }
-            }
-          } else {
-            if (IPConstants.SCHEMAS.equalsIgnoreCase(folder)) {
-              ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.SCHEMA_FILE_NOT_FOUND,
-                ValidationEntry.LEVEL.ERROR, div, ip.getBasePath(), filePath);
-            } else if (IPConstants.DOCUMENTATION.equalsIgnoreCase(folder)) {
-              ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.DOCUMENTATION_FILE_NOT_FOUND,
-                ValidationEntry.LEVEL.ERROR, div, ip.getBasePath(), filePath);
-            } else if (IPConstants.SUBMISSION.equalsIgnoreCase(folder)) {
-              ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.SUBMISSION_FILE_NOT_FOUND,
-                ValidationEntry.LEVEL.ERROR, div, ip.getBasePath(), filePath);
-            }
-          }
+          CommonSipUtils.processFileType(ip, div, fileType, folder, basePath);
         }
       }
-    }
-
     return ip;
   }
 
@@ -660,7 +617,7 @@ public final class EARKUtils {
           if (Files.exists(filePath)) {
             List<String> fileRelativeFolders = Utils
               .getFileRelativeFolders(representationBasePath.resolve(IPConstants.DATA), filePath);
-            Optional<IPFile> file = validateFile(ip, filePath, fileType, fileRelativeFolders);
+            Optional<IPFile> file = validateFileType(ip, filePath, fileType, fileRelativeFolders);
 
             if (file.isPresent()) {
               representation.addFile(file.get());

@@ -77,7 +77,7 @@ public class EARKTest {
   @Test
   public void readAndParseEARKSIP() throws ParseException {
     LOGGER.info("Creating E-ARK SIP");
-    Path zipSIP = readIArxiuSIP("eARK1-SIP - uuid-eb977e52-66d8-4821-b8b4-bc5e4989729e.zip");
+    Path zipSIP = readEarkSIP("eARK1-SIP - uuid-eb977e52-66d8-4821-b8b4-bc5e4989729e.zip");
     Assert.assertNotNull(zipSIP);
     LOGGER.info("Done reading E-ARK SIP: {}", zipSIP);
 
@@ -91,7 +91,7 @@ public class EARKTest {
 
   }
 
-  private static Path readIArxiuSIP(String earkZipName) {
+  private static Path readEarkSIP(String earkZipName) {
     Path zipSIP = Paths.get("src/test/resources/eark").resolve(earkZipName);
     return zipSIP;
   }
@@ -204,6 +204,9 @@ public class EARKTest {
     // assess # of representations
     List<IPRepresentation> representations = earkSIP.getRepresentations();
     Assert.assertThat(representations.size(), Is.is(expectRepresentations));
+
+    List<IPMetadata> preservationMetadata = earkSIP.getPreservationMetadata();
+    Assert.assertNotNull(preservationMetadata);
 
     LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", earkSIP.getId(),
       earkSIP.getValidationReport().isValid());

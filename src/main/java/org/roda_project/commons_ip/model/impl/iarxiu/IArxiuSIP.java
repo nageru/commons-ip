@@ -10,7 +10,7 @@ import org.roda_project.commons_ip.mets_v1_11.beans.MetsType;
 import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.*;
-import org.roda_project.commons_ip.utils.ZIPUtils; // TODO commons_ip2.utils.ZIPUtils;
+import org.roda_project.commons_ip.utils.ZIPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,27 +124,34 @@ public class IArxiuSIP extends SIP {
     if (!sip.isValid()) {
       return sip;
     }
-    // TODO EARKUtils.preProcessStructMap(metsWrapper, structMap);
 
-    /* TODO
-     mets:structMap
-      mets:div DMDID="EXP_1 EXP_1_DC"
-        mets:div DMDID="DOC_1 DOC_1_DC" LABEL="index.xml"
-          mets:div LABEL="index.xml"
-            mets:fptr FILEID="BIN_1_GRP"
-     EARK:
-     <structMap ID="uuid-C3C0F7C8-D8FA-43E8-A06F-1165C6CC2383" TYPE="physical" LABEL="Common Specification structural map">
-      structMap ID
-        div ID="...
-          div ID="
-            div ID="
-              <fptr FILEID="dc.xml"/>
+    IArxiuUtils.preProcessStructMap(mainMetsWrapper, structMap);
+    /*  iArxiu
+         mets:structMap
+          mets:div DMDID="EXP_1 EXP_1_DC"
+            mets:div DMDID="DOC_1 DOC_1_DC" LABEL="index.xml"
+              mets:div LABEL="index.xml"
+                mets:fptr FILEID="BIN_1_GRP"
+        EARK:
+         <structMap ID="uuid-C3C0F7C8-D8FA-43E8-A06F-1165C6CC2383" TYPE="physical" LABEL="Common Specification structural map">
+          structMap ID
+            div ID="...
+              div ID="
+                div ID="
+                  <fptr FILEID="dc.xml"/>
 
       TODO ignore
           <structMap ID="uuid-0D8F99F6-2D5C-4F7B-9320-937B4F43683D" LABEL="RODA structural map">
             <div ..
               <mptr xlink:type="simple" xlink:href="representations%2Frep1%2FMETS.xml" LOCTYPE="URL"/>
      */
+
+    try { // processing the binary files as documentation TODO ¿as DATA?: metsWrapper.setDataDiv(firstLevel);
+      IArxiuUtils.processFilesMetadataAsDocumentation(mainMetsWrapper, sip, sip.getBasePath());
+      // not yet DC metadata pre-processed: EARKUtils.processPreservationMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
+    } catch (IPException e) {
+      throw new ParseException("Error processing iArxiu SIP parsed Preservation Metadata", e);
+    }
 
     ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
 
