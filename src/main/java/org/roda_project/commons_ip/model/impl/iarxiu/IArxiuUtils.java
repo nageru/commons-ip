@@ -160,23 +160,6 @@ public final class IArxiuUtils {
       new MetadataType(METADATA_TYPE), "");
   }
 
-  public static Map<String, String> getIArxiuInfo(Path metadataPath) {
-    final Map<String, String> metadataList = new HashMap<>();
-    try {
-      PropertiesConfiguration config = new Configurations().properties(metadataPath.toFile());
-      Iterator<String> keys = config.getKeys();
-
-      while (keys.hasNext()) {
-        String key = keys.next();
-        metadataList.put(key, config.getString(key));
-      }
-    } catch (ConfigurationException e) {
-      LOGGER.error("Could not load properties with iArxiu metadata", e);
-    }
-
-    return metadataList;
-  }
-
   protected static void preProcessStructMap(MetsWrapper metsWrapper, StructMapType structMap) {
 
     DivType aipDiv = structMap.getDiv();
