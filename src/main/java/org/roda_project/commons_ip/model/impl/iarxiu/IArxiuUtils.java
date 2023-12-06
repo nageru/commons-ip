@@ -299,7 +299,7 @@ public final class IArxiuUtils {
           Path filePath = representationBasePath.resolve(href);
           if (Files.exists(filePath)) {
             List<String> fileRelativeFolders = Utils
-                    .getFileRelativeFolders(representationBasePath.resolve(IPConstants.DATA)
+                    .getFileRelativeFolders(representationBasePath // not as eARK; not using 'data' folder .resolve(IPConstants.DATA)
                             , filePath);
             Optional<IPFile> file = validateFileType(ip, filePath, fileType, fileRelativeFolders);
 
