@@ -26,14 +26,14 @@ public class IArxiuSIP extends SIP {
   private static final String SIP_FILE_EXTENSION = ".zip";
 
   public IArxiuSIP() {
-    super();
+    this("");
   }
 
   /**
    * @param sipId
    */
   public IArxiuSIP(String sipId) {
-    super(sipId);
+    super(sipId, "METS/IP.xml");
   }
 
   /**
@@ -146,11 +146,13 @@ public class IArxiuSIP extends SIP {
               <mptr xlink:type="simple" xlink:href="representations%2Frep1%2FMETS.xml" LOCTYPE="URL"/>
      */
 
-    try { // processing the binary files as documentation TODO ¿as DATA?: metsWrapper.setDataDiv(firstLevel);
-      IArxiuUtils.processFilesMetadataAsDocumentation(mainMetsWrapper, sip, sip.getBasePath());
-      // not yet DC metadata pre-processed: EARKUtils.processPreservationMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
+    try {
+      /* processing the binary file as representation data:
+       *  IPRepresentation.List<IPFile> data <- metsWrapper.setDataDiv(firstLevel); */
+      IArxiuUtils.processFilesMetadataAsRepresentations(mainMetsWrapper, sip, sip.getBasePath());
+      // not yet DC metadata pre-processed: representations <- EARKUtils.processDescriptiveMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
     } catch (IPException e) {
-      throw new ParseException("Error processing iArxiu SIP parsed Preservation Metadata", e);
+      throw new ParseException("Error processing iArxiu SIP parsed Representations Metadata", e);
     }
 
     ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
