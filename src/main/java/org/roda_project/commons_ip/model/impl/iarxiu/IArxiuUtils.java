@@ -13,6 +13,8 @@ import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.*;
 import org.roda_project.commons_ip.model.*;
+import org.roda_project.commons_ip.model.MetadataType.MetadataTypeEnum;
+import org.roda_project.commons_ip.model.impl.eark.EARKUtils;
 import org.roda_project.commons_ip.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -265,20 +267,48 @@ public final class IArxiuUtils {
     return null;
   }
 
-  public static void processFilesMetadataAsRepresentations(MetsWrapper metsWrapper, IPInterface ip, Path basePath)
+  public static void processMetadataAndFilesAsRepresentations(MetsWrapper metsWrapper, IPInterface ip, Path basePath)
           throws IPException {
 
     final DivType representationsDiv = metsWrapper.getRepresentationsDiv();
 
-    if (representationsDiv != null) { // TODO no representation information in the representationsDiv
-
-      // TODO IPRepresentation.List<IPDescriptiveMetadata>.descriptiveMetadata".
+    if (representationsDiv != null) {
 
       final IPRepresentation representation = new IPRepresentation(representationsDiv.getLABEL());
       ip.addRepresentation(representation);
 
+      final List<MdSecType> descriptiveMetadataFiles = new ArrayList<>();
+      /* IPRepresentation.List<IPDescriptiveMetadata>.descriptiveMetadata"
+       *   mdWrap = {MdSecType$MdWrap@3277}
+       *   1 = {MdSecType@3269}
+       *     mdtype = "DC" */
+      final Map<String, MdSecType.MdWrap> expedientXmlData = new HashMap<>();
+      /*  1 = {MdSecType@3269}
+       *     mdtype = "OTHER"
+       *      OTHERMDTYPE="Voc_expedient"
+       *      OTHERMDTYPE="Voc_document_exp" */
+      representationsDiv.getDMDID().stream().filter(o -> o instanceof MdSecType).map(o -> (MdSecType) o).filter(mdSecType -> mdSecType.getID() != null && mdSecType.getMdWrap() != null).forEach(mdSec -> {
+        final MdSecType.MdWrap mdWRef = mdSec.getMdWrap();
+        final String mdType = mdWRef.getMDTYPE();
+        if (MetadataTypeEnum.DC.getType().equalsIgnoreCase(mdType)){
+          descriptiveMetadataFiles.add(mdSec);
+        } else if (MetadataTypeEnum.OTHER.getType().equalsIgnoreCase(mdType)){
+          expedientXmlData.put(mdSec.getID(), mdSec.getMdWrap());
+        } else {
+          LOGGER.warn("Unknown MD Type '{}' for iArxiu SIP {} representation '{}' metadata file: {}", mdType, ip.getId(), representation.getRepresentationID(), mdWRef);
+        }
+      });
+
+      EARKUtils.processIArxiuDCMetadata(ip, LOGGER, metsWrapper, representation, descriptiveMetadataFiles,
+              IPConstants.DESCRIPTIVE, expedientXmlData, basePath);
+      /*
+        TODO TYPE OTHER DescriptiveMetadataDiv().getXxxID -> processIArxiuExpMetadata xml types
+          -> TODO new -> processRepresentationXmlData  (<- instead of processRepresentation "DataFiles" use "XmlData")
+       */
+
       // as IPRepresentation.List<IPFile> data
-      processRepresentationDataFiles(metsWrapper, ip, representationsDiv, representation, basePath);
+      final List<DivType.Fptr> filePointers = getFilePointersList(representationsDiv);
+      processRepresentationDataFiles(metsWrapper, ip, filePointers, representation, basePath);
     }
 
     if (ip.getRepresentations().isEmpty()) {       // post-process validations
@@ -286,9 +316,8 @@ public final class IArxiuUtils {
               ValidationEntry.LEVEL.WARN, representationsDiv, ip.getBasePath(), metsWrapper.getMetsPath());
     }
   }
-  protected static void processRepresentationDataFiles(MetsWrapper metsWrapper, IPInterface ip, DivType representationsDiv,
+  protected static void processRepresentationDataFiles(MetsWrapper metsWrapper, IPInterface ip, List<DivType.Fptr> filePointers,
                                                        IPRepresentation representation, Path representationBasePath) {
-    final List<DivType.Fptr> filePointers = getFilePointersList(representationsDiv);
     for (DivType.Fptr fptr : filePointers) {
       final List<FileType> fileTypes = getFileTypes(fptr);
       for (FileType fileType : fileTypes) {
@@ -317,13 +346,12 @@ public final class IArxiuUtils {
                   ValidationEntry.LEVEL.ERROR, fileType, ip.getBasePath(), metsWrapper.getMetsPath());
         }
       }
-
-      // post-process validations
-      if (representation.getData().isEmpty()) {
-        ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.REPRESENTATION_HAS_NO_FILES,
-                ValidationEntry.LEVEL.WARN, metsWrapper.getDataDiv(), ip.getBasePath(),
-                metsWrapper.getMetsPath());
-      }
+    }
+    // post-process validations
+    if (representation.getData().isEmpty()) {
+      ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.REPRESENTATION_HAS_NO_FILES,
+              ValidationEntry.LEVEL.WARN, metsWrapper.getDataDiv(), ip.getBasePath(),
+              metsWrapper.getMetsPath());
     }
   }
   /**

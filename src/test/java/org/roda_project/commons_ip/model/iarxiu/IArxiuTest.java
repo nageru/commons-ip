@@ -83,8 +83,6 @@ public class IArxiuTest {
       }));
     }
 
-    // TODO representations - List<IPDescriptiveMetadata> getDescriptiveMetadata()
-
     final List<IPRepresentation> representations = iArxiuSIP.getRepresentations();
     Assert.assertNotNull(representations);
     Assert.assertNotEquals(0, representations.size());
@@ -93,13 +91,24 @@ public class IArxiuTest {
       Assert.assertNotNull(representation);
       final String representationId = representation.getRepresentationID(); // index.xml
       Assert.assertNotNull(representationId);
+
       final List<IPFile> representationDataFiles = representation.getData();
       Assert.assertNotEquals(0, representationDataFiles.size());
       Assert.assertTrue("representation data files to be found",
-              representationDataFiles.stream().allMatch(ipFile -> ipFile != null && isNotBlank(ipFile.getFileName())));
+              representationDataFiles.stream().allMatch(ipFile -> verifyFileExists(ipFile)));
+
+      final List<IPDescriptiveMetadata> representationDescriptiveMetadata = representation.getDescriptiveMetadata();
+      Assert.assertNotEquals(0, representationDataFiles.size());
+      Assert.assertTrue("representation Descriptive Metadata to be found",
+              representationDescriptiveMetadata.stream().allMatch(ipFile ->
+                      ipFile != null && ipFile.getCreateDate() != null && ipFile.getMetadataType() != null && verifyFileExists(ipFile.getMetadata())));
     }
 
     LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(),
       iArxiuSIP.getValidationReport().isValid());
+  }
+
+  private static boolean verifyFileExists(IPFile ipFile){
+    return ipFile != null && isNotBlank(ipFile.getFileName()) && ipFile.getPath().toFile().exists();
   }
 }

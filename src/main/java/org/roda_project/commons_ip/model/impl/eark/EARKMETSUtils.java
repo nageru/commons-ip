@@ -53,6 +53,8 @@ import org.roda_project.commons_ip.utils.ZipEntryInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.roda_project.commons_ip.utils.METSUtils.createMdRef;
+
 public final class EARKMETSUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(EARKMETSUtils.class);
 
@@ -260,15 +262,9 @@ public final class EARKMETSUtils {
     MdSecType dmdSec = new MdSecType();
     dmdSec.setID(Utils.generateRandomAndPrefixedUUID());
 
-    MdRef mdRef = createMdRef(metadata.getId(), metadataPath);
-    mdRef.setMDTYPE(mdType);
-    if (StringUtils.isNotBlank(mdOtherType)) {
-      mdRef.setOTHERMDTYPE(mdOtherType);
-    }
+    final MdRef mdRef = createMdRef(metadata.getId(), metadataPath);
     mdRef.setMDTYPEVERSION(mdTypeVersion);
-
-    // set mimetype, date creation, etc.
-    METSUtils.setFileBasicInformation(metadata.getMetadata().getPath(), mdRef);
+    mdRef.setType(IPConstants.METS_TYPE_SIMPLE);
     // also set date created in dmdSec elem
     dmdSec.setCREATED(mdRef.getCREATED());
 
@@ -304,15 +300,6 @@ public final class EARKMETSUtils {
 
     digiprovMD.setMdRef(mdRef);
     metsWrapper.getMets().getAmdSec().get(0).getDigiprovMD().add(digiprovMD);
-    return mdRef;
-  }
-
-  private static MdRef createMdRef(String id, String metadataPath) {
-    MdRef mdRef = new MdRef();
-    mdRef.setID(id);
-    mdRef.setType(IPConstants.METS_TYPE_SIMPLE);
-    mdRef.setLOCTYPE(LocType.URL.toString());
-    mdRef.setHref(METSUtils.encodeHref(metadataPath));
     return mdRef;
   }
 

@@ -10,7 +10,6 @@ import org.roda_project.commons_ip.mets_v1_11.beans.MetsType;
 import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.*;
-import org.roda_project.commons_ip.utils.ZIPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,9 @@ import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
 
 public class IArxiuSIP extends SIP {
   private static final Logger LOGGER = LoggerFactory.getLogger(IArxiuSIP.class);
@@ -149,8 +150,11 @@ public class IArxiuSIP extends SIP {
     try {
       /* processing the binary file as representation data:
        *  IPRepresentation.List<IPFile> data <- metsWrapper.setDataDiv(firstLevel); */
-      IArxiuUtils.processFilesMetadataAsRepresentations(mainMetsWrapper, sip, sip.getBasePath());
-      // not yet DC metadata pre-processed: representations <- EARKUtils.processDescriptiveMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
+      IArxiuUtils.processMetadataAndFilesAsRepresentations(mainMetsWrapper, sip, sip.getBasePath());
+      // Analogue to EARKUtils -> processRepresentations(mainMetsWrapper, sip, LOGGER);
+      // + EARKUtils -> processDescriptiveMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
+
+
     } catch (IPException e) {
       throw new ParseException("Error processing iArxiu SIP parsed Representations Metadata", e);
     }
