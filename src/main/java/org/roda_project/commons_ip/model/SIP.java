@@ -28,6 +28,13 @@ public abstract class SIP extends IP {
     observers = new ArrayList<>();
   }
 
+  public SIP(String sipId, String profile) {
+    super(profile);
+    setId(sipId);
+    setType(IPType.SIP);
+    observers = new ArrayList<>();
+  }
+
   public SIP(String sipId, IPContentType contentType) {
     super();
     setId(sipId);

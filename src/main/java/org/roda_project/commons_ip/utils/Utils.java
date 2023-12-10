@@ -185,21 +185,21 @@ public final class Utils {
     // validate if both mets checksum or mets algorithm are set
     if (StringUtils.isBlank(metsChecksum)) {
       ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.CHECKSUM_NOT_SET,
-        ValidationEntry.LEVEL.ERROR, ip.getBasePath(), filePath);
+        ValidationEntry.LEVEL.WARN, ip.getBasePath(), filePath);
       calculateChecksum = false;
     }
     if (StringUtils.isBlank(metsChecksumAlgorithm)) {
       ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.CHECKSUM_ALGORITHM_NOT_SET,
-        ValidationEntry.LEVEL.ERROR, ip.getBasePath(), filePath);
+        ValidationEntry.LEVEL.WARN, ip.getBasePath(), filePath);
       calculateChecksum = false;
     }
 
+    final IPFile ipFile = new IPFile(filePath, fileRelativeFolders);
     if (calculateChecksum) {
       try {
         String computedChecksum = Utils.calculateChecksum(Files.newInputStream(filePath), metsChecksumAlgorithm);
         if (computedChecksum.equalsIgnoreCase(metsChecksum)) {
-          file = Optional
-            .of(new IPFile(filePath, fileRelativeFolders).setChecksumAndAlgorithm(metsChecksum, metsChecksumAlgorithm));
+          file = Optional.of(ipFile.setChecksumAndAlgorithm(metsChecksum, metsChecksumAlgorithm));
         } else {
           ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.CHECKSUMS_DIFFER,
             ValidationEntry.LEVEL.ERROR, metsElementId, metsChecksum, metsChecksumAlgorithm, computedChecksum,
@@ -209,6 +209,8 @@ public final class Utils {
         ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.ERROR_COMPUTING_CHECKSUM,
           ValidationEntry.LEVEL.ERROR, e, ip.getBasePath(), filePath);
       }
+    } else {
+      file = Optional.of(ipFile);
     }
 
     return file;

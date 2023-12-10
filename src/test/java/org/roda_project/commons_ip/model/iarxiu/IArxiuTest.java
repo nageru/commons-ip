@@ -1,14 +1,11 @@
 package org.roda_project.commons_ip.model.iarxiu;
 
-import org.apache.commons.lang3.StringUtils;
-import org.hamcrest.core.Is;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.model.impl.iarxiu.IArxiuSIP;
-import org.roda_project.commons_ip.utils.IPException;
 import org.roda_project.commons_ip.utils.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,30 +65,50 @@ public class IArxiuTest {
     // - List<IPMetadata> getPreservationMetadata()
     final List<IPMetadata> preservationMetadata = iArxiuSIP.getPreservationMetadata();
     Assert.assertNotNull(preservationMetadata);
-    if (false) { // TODO preservation / metadata (DC) not yet
+
+    /* TODO root descriptive metadata ID
+        id = "uuid-608E04EC-A93A-484C-BADA-44AD3F7851E1"
+          -> mets:div ADMID="AMD_PAC" DMDID="EXP_1 EXP_1_DC" LABEL="UDL_1435231985409" ?
+		label = "descriptive"
+     */
+
+    if (false) { // TODO preservationMetadata.. discard? is present? ignore?
       Assert.assertNotEquals(0, preservationMetadata.size());
       Assert.assertTrue("preservation metadata to be found", preservationMetadata.stream().anyMatch(ipMetadata -> {
         final MetadataType preservationMetadataType = ipMetadata.getMetadataType();
-        final IPFile documentationIpFile = ipMetadata.getMetadata();
-        return preservationMetadataType != null && MetadataType.MetadataTypeEnum.DC == preservationMetadataType.getType()
-                && documentationIpFile != null && isNotBlank(documentationIpFile.getFileName());
+        final IPFile ipFile = ipMetadata.getMetadata();
+        final MetadataType.MetadataTypeEnum type = preservationMetadataType.getType();
+        return preservationMetadataType != null && type != null
+                && ipFile != null && isNotBlank(ipFile.getFileName());
       }));
     }
 
-    // - List<IPFile> getDocumentation()
-    final List<IPFile> documentationFiles = iArxiuSIP.getDocumentation();
-    Assert.assertNotNull(documentationFiles);
-    Assert.assertNotEquals(0, documentationFiles.size());
-    Assert.assertTrue("documentation files to be found",
-            documentationFiles.stream().allMatch(ipFile -> ipFile != null && isNotBlank(ipFile.getFileName())));
-
-    // TODO - List<IPDescriptiveMetadata> getDescriptiveMetadata()
-
-    // iArxiu #0 representations
     final List<IPRepresentation> representations = iArxiuSIP.getRepresentations();
     Assert.assertNotNull(representations);
+    Assert.assertNotEquals(0, representations.size());
+
+    for(IPRepresentation representation : representations) {
+      Assert.assertNotNull(representation);
+      final String representationId = representation.getRepresentationID(); // index.xml
+      Assert.assertNotNull(representationId);
+
+      final List<IPFile> representationDataFiles = representation.getData();
+      Assert.assertNotEquals(0, representationDataFiles.size());
+      Assert.assertTrue("representation data files to be found",
+              representationDataFiles.stream().allMatch(ipFile -> verifyFileExists(ipFile)));
+
+      final List<IPDescriptiveMetadata> representationDescriptiveMetadata = representation.getDescriptiveMetadata();
+      Assert.assertNotEquals(0, representationDataFiles.size());
+      Assert.assertTrue("representation Descriptive Metadata to be found",
+              representationDescriptiveMetadata.stream().allMatch(ipFile ->
+                      ipFile != null && ipFile.getCreateDate() != null && ipFile.getMetadataType() != null && verifyFileExists(ipFile.getMetadata())));
+    }
 
     LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(),
       iArxiuSIP.getValidationReport().isValid());
+  }
+
+  private static boolean verifyFileExists(IPFile ipFile){
+    return ipFile != null && isNotBlank(ipFile.getFileName()) && ipFile.getPath().toFile().exists();
   }
 }

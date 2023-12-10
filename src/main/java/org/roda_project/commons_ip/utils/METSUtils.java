@@ -24,6 +24,7 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.XMLGregorianCalendar;
 import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.SchemaFactory;
@@ -37,6 +38,8 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public final class METSUtils {
 
@@ -196,29 +199,75 @@ public final class METSUtils {
     return fileLocation;
   }
 
-  public static MdRef setFileBasicInformation(Path file, MdRef mdRef) throws IPException, InterruptedException {
+  public static MdRef createMdRef(String id, String metadataPath, MetadataType.MetadataTypeEnum mdType, String mimeType, XMLGregorianCalendar created, Long size, String otherType, String version) {
+    return createMdRef(id, metadataPath, mdType.getType(), mimeType, created, size, otherType, version);
+  }
+  public static MdRef createMdRef(String id, String metadataPath, String mdType, String mimeType, XMLGregorianCalendar created, Long size, String otherType, String version){
+    MdRef mdRef = createMdRef(id, metadataPath);
+    mdRef.setMDTYPE(mdType);
+    if (isNotBlank(otherType)) {
+      mdRef.setOTHERMDTYPE(otherType);
+    }
+
+    mdRef.setMDTYPEVERSION(version);
+
+    // set mimetype, date creation, etc.
+    METSUtils.setFileBasicInformation( mimeType, created, size, mdRef);
+
+    return mdRef;
+  }
+
+  /**
+   * @param id
+   * @param metadataPath the path to the file starting from metadata; sub-path under the base path;
+   *                     sample from $basePath: "/metadata/descriptive/dc.xml"
+   * @return */
+  public static MdRef createMdRef(String id, String metadataPath) {
+    MdRef mdRef = new MdRef();
+    mdRef.setID(id);
+    mdRef.setLOCTYPE(LocType.URL.toString());
+    mdRef.setHref(METSUtils.encodeHref(metadataPath));
+    return mdRef;
+  }
+
+  public static MdRef setFileBasicInformation(Path file, MdRef mdRef) throws IPException {
+    final String mimeType;
     // mimetype info.
     try {
-      mdRef.setMIMETYPE(getFileMimetype(file));
+      mimeType = getFileMimetype(file);
     } catch (IOException e) {
       throw new IPException("Error probing file content (" + file + ")", e);
     }
 
+    final XMLGregorianCalendar created;
     // date creation info.
     try {
-      mdRef.setCREATED(Utils.getCurrentCalendar());
+      created = Utils.getCurrentCalendar();
     } catch (DatatypeConfigurationException e) {
       throw new IPException("Error getting current calendar", e);
     }
 
+    final Long size;
     // size info.
     try {
-      mdRef.setSIZE(Files.size(file));
+      size = Files.size(file);
     } catch (IOException e) {
       throw new IPException("Error getting file size (" + file + ")", e);
     }
-
+    setFileBasicInformation(mimeType, created, size, mdRef);
     return mdRef;
+  }
+
+  private static void setFileBasicInformation(String mimeType, XMLGregorianCalendar created, Long size, MdRef mdRef) {
+    // mimetype info.
+    mdRef.setMIMETYPE(mimeType);
+
+    // date creation info.
+    mdRef.setCREATED(created);
+
+    // size info.
+    mdRef.setSIZE(size);
+
   }
 
   public static void setFileBasicInformation(Logger logger, Path file, FileType fileType)

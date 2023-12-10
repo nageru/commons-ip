@@ -52,8 +52,12 @@ public abstract class IP implements IPInterface {
   private ValidationReport validationReport;
 
   public IP() {
+    this("http://www.eark-project.com/METS/IP.xml");
+
+  }
+  public IP(String profile) {
     this.setId(Utils.generateRandomAndPrefixedUUID());
-    this.profile = "http://www.eark-project.com/METS/IP.xml";
+    this.profile = profile;
     this.type = IPType.SIP;
     this.header = new IPHeader();
 

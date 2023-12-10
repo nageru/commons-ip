@@ -10,7 +10,6 @@ import org.roda_project.commons_ip.mets_v1_11.beans.MetsType;
 import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.*;
-import org.roda_project.commons_ip.utils.ZIPUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,9 @@ import javax.xml.datatype.XMLGregorianCalendar;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
 
 public class IArxiuSIP extends SIP {
   private static final Logger LOGGER = LoggerFactory.getLogger(IArxiuSIP.class);
@@ -26,14 +27,14 @@ public class IArxiuSIP extends SIP {
   private static final String SIP_FILE_EXTENSION = ".zip";
 
   public IArxiuSIP() {
-    super();
+    this("");
   }
 
   /**
    * @param sipId
    */
   public IArxiuSIP(String sipId) {
-    super(sipId);
+    super(sipId, "METS/IP.xml");
   }
 
   /**
@@ -146,11 +147,16 @@ public class IArxiuSIP extends SIP {
               <mptr xlink:type="simple" xlink:href="representations%2Frep1%2FMETS.xml" LOCTYPE="URL"/>
      */
 
-    try { // processing the binary files as documentation TODO ¿as DATA?: metsWrapper.setDataDiv(firstLevel);
-      IArxiuUtils.processFilesMetadataAsDocumentation(mainMetsWrapper, sip, sip.getBasePath());
-      // not yet DC metadata pre-processed: EARKUtils.processPreservationMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
+    try {
+      /* processing the binary file as representation data:
+       *  IPRepresentation.List<IPFile> data <- metsWrapper.setDataDiv(firstLevel); */
+      IArxiuUtils.processMetadataAndFilesAsRepresentations(mainMetsWrapper, sip, sip.getBasePath());
+      // Analogue to EARKUtils -> processRepresentations(mainMetsWrapper, sip, LOGGER);
+      // + EARKUtils -> processDescriptiveMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
+
+
     } catch (IPException e) {
-      throw new ParseException("Error processing iArxiu SIP parsed Preservation Metadata", e);
+      throw new ParseException("Error processing iArxiu SIP parsed Representations Metadata", e);
     }
 
     ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
