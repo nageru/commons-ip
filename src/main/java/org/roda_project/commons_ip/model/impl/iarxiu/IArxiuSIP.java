@@ -141,19 +141,19 @@ public class IArxiuSIP extends SIP {
                 div ID="
                   <fptr FILEID="dc.xml"/>
 
-      TODO ignore
+      ignoring:
           <structMap ID="uuid-0D8F99F6-2D5C-4F7B-9320-937B4F43683D" LABEL="RODA structural map">
             <div ..
               <mptr xlink:type="simple" xlink:href="representations%2Frep1%2FMETS.xml" LOCTYPE="URL"/>
      */
 
     try {
+      // + EARKUtils -> processDescriptiveMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
+      IArxiuUtils.processDescriptiveMetadata(mainMetsWrapper, sip, sip.getBasePath());
       /* processing the binary file as representation data:
        *  IPRepresentation.List<IPFile> data <- metsWrapper.setDataDiv(firstLevel); */
       IArxiuUtils.processRepresentations(mainMetsWrapper, sip, sip.getBasePath());
       // Analogue to EARKUtils -> processRepresentations(mainMetsWrapper, sip, LOGGER);
-      // + EARKUtils -> processDescriptiveMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
-
 
     } catch (IPException e) {
       throw new ParseException("Error processing iArxiu SIP parsed Representations Metadata", e);

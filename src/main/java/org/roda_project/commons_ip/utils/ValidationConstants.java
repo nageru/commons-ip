@@ -37,6 +37,7 @@ public final class ValidationConstants {
 
   // iArxiu
   public static final String MAIN_METS_HAS_NO_I_ARXIU_STRUCT_MAP = String.format(MAIN_METS_HAS_NO_STRUCT_MAP_FORMAT, "iArxiu");
+  public static final String MAIN_METS_HAS_I_ARXIU_STRUCT_MAP = "Main METS.xml file has iArxiu structural map.";
 
   // EARK
   public static final String MAIN_METS_HAS_NO_E_ARK_STRUCT_MAP = String.format(MAIN_METS_HAS_NO_STRUCT_MAP_FORMAT, "E-ARK");

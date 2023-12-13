@@ -525,8 +525,18 @@ public final class EARKUtils {
     return ip;
   }
 
+  public static void processIArxiuDocuments(IPInterface ip, Logger logger, MetsWrapper mainMetsWrapper,
+                                                          List<MdSecType> metadataSecList, String metadataType, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
+    processIArxiuDocuments(ip, logger, mainMetsWrapper, null, metadataSecList, metadataType, expedientXmlData, basePath);
+  }
+
   public static void processIArxiuRepresentationDocuments(IPInterface ip, Logger logger, MetsWrapper representationMetsWrapper,
                                                           IPRepresentation representation, List<MdSecType> metadataSecList, String metadataType, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
+    processIArxiuDocuments(ip, logger, representationMetsWrapper, representation, metadataSecList, metadataType, expedientXmlData, basePath);
+  }
+
+  private static void processIArxiuDocuments(IPInterface ip, Logger logger, MetsWrapper metsWrapper, IPRepresentation representation,
+                                             List<MdSecType> metadataSecList, String metadataType, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
 
     if (metadataSecList != null) {
       for (MdSecType metadataSec : metadataSecList) {
@@ -544,8 +554,9 @@ public final class EARKUtils {
 
         final MdSecType.MdWrap expXmlData = expedientXmlData.get(expId);
         if (expXmlData == null) {
-          LOGGER.warn("Missing iArxiu SIP '{}' representation '{}' expedient XML data for DC metadata file '{}': {}",
-                  ip.getId(), representation.getRepresentationID(), expId, expedientXmlData);
+          LOGGER.warn("Missing iArxiu SIP '{}' {}expedient XML data for DC metadata file '{}': {}",
+                  ip.getId(), representation!= null ?  "representation '"+representation.getRepresentationID()+"' " : "",
+                  expId, expedientXmlData);
         } else {
           final String expMdType = expXmlData.getMDTYPE();
           final String expMetadataPath = Paths.get(IPConstants.METADATA, expMdType).toString();
@@ -557,7 +568,7 @@ public final class EARKUtils {
     } else {
       ValidationUtils.addIssue(ip.getValidationReport(),
               ValidationConstants.getMetadataFileNotFoundString(metadataType), ValidationEntry.LEVEL.ERROR,
-              ip.getBasePath(), representationMetsWrapper.getMetsPath());
+              ip.getBasePath(), metsWrapper.getMetsPath());
     }
   }
 

@@ -100,7 +100,6 @@ public final class IArxiuUtils {
     return ipContentType;
   }
 
-
   protected static StructMapType getMainMetsStructMap(MetsWrapper metsWrapper, IPInterface ip) {
     final Mets mets = metsWrapper.getMets();
 
@@ -127,50 +126,26 @@ public final class IArxiuUtils {
         LOGGER.warn("Main METS.xml file has too many ({}) structural map. Will take first only! Ignored: {}", smCount, metsStructMapList);
       }
       ValidationUtils.addInfo(ip.getValidationReport(),
-              ValidationConstants.MAIN_METS_HAS_E_ARK_STRUCT_MAP,
+              ValidationConstants.MAIN_METS_HAS_I_ARXIU_STRUCT_MAP,
               structMap, ip.getBasePath(), metsWrapper.getMetsPath());
     }
     return structMap;
   }
 
-  public static IPDescriptiveMetadata createIArxiuMetadata(Map<String, String> metadata, Path metadataPath) {
-    return createIArxiuMetadata(metadata, new ArrayList<>(), metadataPath);
-  }
-
-  public static IPDescriptiveMetadata createIArxiuMetadata(Map<String, String> metadata, List<String> ancestors,
-    Path metadataPath) {
-    try {
-      FileBasedConfigurationBuilder<PropertiesConfiguration> builder = new Configurations()
-        .propertiesBuilder(metadataPath.toFile());
-      Files.createFile(metadataPath);
-      PropertiesConfiguration config = builder.getConfiguration();
-
-      for (Entry<String, String> entry : metadata.entrySet()) {
-        config.setProperty(entry.getKey(), entry.getValue());
-      }
-
-      for (String ancestor : ancestors) {
-        config.addProperty(IPConstants.PARENT_KEY, ancestor);
-      }
-
-      builder.save();
-    } catch (IOException | ConfigurationException e) {
-      LOGGER.error("Could not save IArxiu metadata content on file", e);
-    }
-
-    return new IPDescriptiveMetadata(metadataPath.getFileName().toString(), new IPFile(metadataPath),
-      new MetadataType(METADATA_TYPE), "");
-  }
-
   protected static void preProcessStructMap(MetsWrapper metsWrapper, StructMapType structMap) {
 
-    DivType aipDiv = structMap.getDiv();
-    if (aipDiv.getDiv() != null) {
-      metsWrapper.setMainDiv(aipDiv);
-      for (DivType firstLevel : aipDiv.getDiv()) {
+    if (structMap == null || structMap.getDiv() == null){
+      LOGGER.warn("Mets has no struct map information! {}: {}", metsWrapper, structMap);
+    }
 
-        final String parentLabelId = getLabel(firstLevel); // iArxiu LABEL="index.xml"
-        final DivType filesMetadataDiv = findFilesMetadataDiv(firstLevel);
+    final DivType aipDiv = structMap.getDiv();
+    if (aipDiv.getDiv() != null) {
+
+      metsWrapper.setMainDiv(aipDiv); //  descriptive metadata: aipDiv -> dmdid -> List {MdSecType@3284}
+
+      for (DivType firstLevel : aipDiv.getDiv()) {
+        final String representationLabelId = getLabel(firstLevel); // iArxiu LABEL="index.xml"
+        final DivType representationMetadataFilesDiv = findFilesMetadataDiv(firstLevel);
         /* firstLevel LABEL="index.xml" -> fptr FILEID="BIN_1_GRP"
 
               fptr = {ArrayList@3416}  size = 1
@@ -184,16 +159,15 @@ public final class IArxiuUtils {
                             0 = {FileType$FLocat@3438}
                             href = "BIN_1/index.xml"
           */
-        if (filesMetadataDiv != null) { // process the iArxiu found files metadata as documentation TODO as data? metsWrapper.setDataDiv(filesMetadataDiv);
-          LOGGER.info("Setting iArxiu IP first level div label '{}' of files metadata as representations: {}", parentLabelId, filesMetadataDiv);
-          metsWrapper.setRepresentationsDiv(filesMetadataDiv);
+        if (representationMetadataFilesDiv != null) { // process the iArxiu found files metadata as documentation TODO as data? metsWrapper.setDataDiv(filesMetadataDiv);
+          LOGGER.info("Setting iArxiu IP first level div label '{}' of files metadata as representations: {}", representationLabelId, representationMetadataFilesDiv);
+          metsWrapper.setRepresentationsDiv(representationMetadataFilesDiv);
         } else {
-          LOGGER.warn("IP first level div label '{}' discarded; contains no files metadata: {}", parentLabelId, firstLevel);
+          LOGGER.warn("IP first level div label '{}' discarded; contains no files metadata: {}", representationLabelId, firstLevel);
         }
 
-        final List<Object> dmdIdDocMetadataList = // TODO (next Paso 4: REVIEW_3) DMDID="DOC_1 DOC_1_DC" LABEL="index.xml"
-        /*
-          namespaceURI = "http://schemas.user.iarxiu.hp.com/2.0/Voc_document_exp"
+        final List<Object> dmdIdDocMetadataList =
+        /* namespaceURI = "http://schemas.user.iarxiu.hp.com/2.0/Voc_document_exp"
             dmdid = {ArrayList@3243}  size = 2
                 any = {ArrayList@3257}  size = 1
                   name = "voc:document"
@@ -216,32 +190,15 @@ public final class IArxiuUtils {
                xmlData = {MdSecType$MdWrap$XmlData@3277}
          */
                 firstLevel.getDMDID();
-
-      /* TODO discard? set <- DescriptiveMetadataDiv only?
-      if (IPConstants.METADATA.equalsIgnoreCase(firstLevel.getLABEL()) && firstLevel.getDiv() != null) {
-          for (DivType secondLevel : firstLevel.getDiv()) {
-            if (IPConstants.DESCRIPTIVE.equalsIgnoreCase(secondLevel.getLABEL())) {
-              metsWrapper.setDescriptiveMetadataDiv(secondLevel);
-            } else if (IPConstants.PRESERVATION.equalsIgnoreCase(secondLevel.getLABEL())) {
-              metsWrapper.setPreservationMetadataDiv(secondLevel);
-            } else if (IPConstants.OTHER.equalsIgnoreCase(secondLevel.getLABEL())) {
-              metsWrapper.setOtherMetadataDiv(secondLevel);
-            }
-          }
-        } else if (IPConstants.REPRESENTATIONS.equalsIgnoreCase(firstLevel.getLABEL())) {
-          metsWrapper.setRepresentationsDiv(firstLevel);
-        } else if (IPConstants.DATA.equalsIgnoreCase(firstLevel.getLABEL())) {
-          metsWrapper.setDataDiv(firstLevel);
-        } else if (IPConstants.SCHEMAS.equalsIgnoreCase(firstLevel.getLABEL())) {
-          metsWrapper.setSchemasDiv(firstLevel);
-        } else if (IPConstants.DOCUMENTATION.equalsIgnoreCase(firstLevel.getLABEL())) {
-          metsWrapper.setDocumentationDiv(firstLevel);
-        } else if (IPConstants.SUBMISSION.equalsIgnoreCase(firstLevel.getLABEL())) {
-          metsWrapper.setSubmissionsDiv(firstLevel);
-        }
-      */
       }
     }
+  }
+
+  private static List<MdSecType> findMainDescriptiveMetadataFiles(DivType fdiv){
+    if (fdiv == null || fdiv.getDMDID() == null){
+      return ListUtils.EMPTY_LIST;
+    }
+    return fdiv.getDMDID().stream().filter(o -> o != null && o instanceof MdSecType).map(md -> ((MdSecType) md)).filter(mdSecType -> mdSecType.getID() != null && mdSecType.getMdWrap() != null).collect(Collectors.toList());
   }
 
   private static DivType findFilesMetadataDiv(DivType fdiv){
@@ -267,6 +224,31 @@ public final class IArxiuUtils {
     return null;
   }
 
+  public static void processDescriptiveMetadata(MetsWrapper metsWrapper, IPInterface ip, Path basePath) throws IPException {
+    final DivType mainDiv = metsWrapper.getMainDiv();
+    if (mainDiv != null) {
+      /*  Expedient
+       *  dmdSec ID="EXP_1_DC": mdWrap MDTYPE="DC"
+       *  dmdSec ID="EXP_1": 1 = {MdSecType@3269}
+       *     mdtype = "OTHER"
+       *      OTHERMDTYPE="Voc_expedient" */
+      final List<MdSecType> documentsMetadata = new ArrayList<>();
+      /* IPRepresentation.List<IPDescriptiveMetadata>.descriptiveMetadata"
+       *   mdWrap = {MdSecType$MdWrap@3277}
+       *   1 = {MdSecType@3269}
+       *     mdtype = "DC" */
+      final Map<String, MdSecType.MdWrap> documentXmlData = new HashMap<>();
+      /*  1 = {MdSecType@3269}
+       *     mdtype = "OTHER"
+       *      OTHERMDTYPE="Voc_document_exp" */
+      loadDescriptiveMetadataFiles(mainDiv, documentsMetadata, documentXmlData);
+
+      EARKUtils.processIArxiuDocuments(ip, LOGGER, metsWrapper, documentsMetadata,
+              IPConstants.DESCRIPTIVE, documentXmlData, basePath);
+
+    } // already validation error on pre-processing: ValidationReport MAIN_METS_HAS_NO_E_ARK_STRUCT_MAP
+  }
+
   public static void processRepresentations(MetsWrapper metsWrapper, IPInterface ip, Path basePath)
           throws IPException {
 
@@ -277,12 +259,6 @@ public final class IArxiuUtils {
       final IPRepresentation representation = new IPRepresentation(representationsDiv.getLABEL());
       ip.addRepresentation(representation);
 
-      /*  Expedient TODO move out of representations: metadata EXP_1_DC & data
-       *  dmdSec ID="EXP_1_DC": mdWrap MDTYPE="DC"
-       *  dmdSec ID="EXP_1": 1 = {MdSecType@3269}
-       *     mdtype = "OTHER"
-       *      OTHERMDTYPE="Voc_expedient" */
-
       final List<MdSecType> documentsMetadata = new ArrayList<>();
       /* IPRepresentation.List<IPDescriptiveMetadata>.descriptiveMetadata"
        *   mdWrap = {MdSecType$MdWrap@3277}
@@ -292,17 +268,7 @@ public final class IArxiuUtils {
       /*  1 = {MdSecType@3269}
        *     mdtype = "OTHER"
        *      OTHERMDTYPE="Voc_document_exp" */
-      representationsDiv.getDMDID().stream().filter(o -> o instanceof MdSecType).map(o -> (MdSecType) o).filter(mdSecType -> mdSecType.getID() != null && mdSecType.getMdWrap() != null).forEach(mdSec -> {
-        final MdSecType.MdWrap mdWRef = mdSec.getMdWrap();
-        final String mdType = mdWRef.getMDTYPE();
-        if (MetadataTypeEnum.DC.getType().equalsIgnoreCase(mdType)){
-          documentsMetadata.add(mdSec);
-        } else if (MetadataTypeEnum.OTHER.getType().equalsIgnoreCase(mdType)){
-          documentXmlData.put(mdSec.getID(), mdSec.getMdWrap());
-        } else {
-          LOGGER.warn("Unknown MD Type '{}' for iArxiu SIP {} representation '{}' metadata file: {}", mdType, ip.getId(), representation.getRepresentationID(), mdWRef);
-        }
-      });
+      loadDescriptiveMetadataFiles(representationsDiv, documentsMetadata, documentXmlData);
 
       EARKUtils.processIArxiuRepresentationDocuments(ip, LOGGER, metsWrapper, representation, documentsMetadata,
               IPConstants.DESCRIPTIVE, documentXmlData, basePath);
@@ -317,6 +283,24 @@ public final class IArxiuUtils {
               ValidationEntry.LEVEL.WARN, representationsDiv, ip.getBasePath(), metsWrapper.getMetsPath());
     }
   }
+
+  private static void loadDescriptiveMetadataFiles(DivType div, List<MdSecType> metadataList, Map<String, MdSecType.MdWrap> xmlDataMap) {
+
+    final List<MdSecType> metadataTypes = findMainDescriptiveMetadataFiles(div);
+    for (MdSecType metadata : metadataTypes) {
+      final MdSecType.MdWrap mdWRef = metadata.getMdWrap();
+      final String mdType = mdWRef.getMDTYPE();
+      /* 1 = {MdSecType@3269} mdtype = "DC" */
+      if (MetadataTypeEnum.DC.getType().equalsIgnoreCase(mdType)) {
+        metadataList.add(metadata);
+      } else if (MetadataTypeEnum.OTHER.getType().equalsIgnoreCase(mdType)) { /*  MdSecType mdtype = "OTHER" */
+        xmlDataMap.put(metadata.getID(), metadata.getMdWrap());
+      } else {
+        LOGGER.warn("Unknown MD Type '{}' for iArxiu metadata: {}", mdType, mdWRef);
+      }
+    }
+  }
+
   protected static void processRepresentationDataFiles(MetsWrapper metsWrapper, IPInterface ip, List<DivType.Fptr> filePointers,
                                                        IPRepresentation representation, Path representationBasePath) {
     for (DivType.Fptr fptr : filePointers) {

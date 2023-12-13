@@ -59,15 +59,12 @@ public class IArxiuTest {
       .forEach(e -> LOGGER.error("Validation report entry: {}", e));
     Assert.assertTrue(iArxiuSIP.getValidationReport().isValid());
 
-    // - List<IPMetadata> getPreservationMetadata()
-    final List<IPMetadata> preservationMetadata = iArxiuSIP.getPreservationMetadata();
-    Assert.assertNotNull(preservationMetadata);
-
-    /* TODO root descriptive metadata ID
-        id = "uuid-608E04EC-A93A-484C-BADA-44AD3F7851E1"
-          -> mets:div ADMID="AMD_PAC" DMDID="EXP_1 EXP_1_DC" LABEL="UDL_1435231985409"
-		label = "descriptive" TODO same as in
-     */
+    final List<IPDescriptiveMetadata> descriptiveMetadata = iArxiuSIP.getDescriptiveMetadata();
+    /* root descriptive metadata ID
+      id = "uuid-608E04EC-A93A-484C-BADA-44AD3F7851E1"
+        -> mets:div ADMID="AMD_PAC" DMDID="EXP_1 EXP_1_DC" LABEL="UDL_1435231985409"
+      label = "descriptive" */
+    verifyExistingDescriptiveMetadataFiles(descriptiveMetadata);
 
     final List<IPRepresentation> representations = iArxiuSIP.getRepresentations();
     Assert.assertNotNull(representations);
@@ -83,15 +80,20 @@ public class IArxiuTest {
       Assert.assertTrue("representation data files to be found",
               representationDataFiles.stream().allMatch(ipFile -> verifyFileExists(ipFile)));
 
-      final List<IPDescriptiveMetadata> representationDescriptiveMetadata = representation.getDescriptiveMetadata();
-      Assert.assertNotEquals(0, representationDataFiles.size());
-      Assert.assertTrue("representation Descriptive Metadata to be found",
-              representationDescriptiveMetadata.stream().allMatch(ipFile ->
-                      ipFile != null && ipFile.getCreateDate() != null && ipFile.getMetadataType() != null && verifyFileExists(ipFile.getMetadata())));
+      verifyExistingDescriptiveMetadataFiles(representation.getDescriptiveMetadata());
     }
 
     LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(),
       iArxiuSIP.getValidationReport().isValid());
+  }
+
+  private void verifyExistingDescriptiveMetadataFiles(final List<IPDescriptiveMetadata> descriptiveMetadata){
+    Assert.assertNotNull(descriptiveMetadata);
+    Assert.assertNotEquals(0, descriptiveMetadata.size());
+    Assert.assertTrue("Descriptive Metadata to be found",
+            descriptiveMetadata.stream().allMatch(ipFile ->
+                    ipFile != null && ipFile.getCreateDate() != null && ipFile.getMetadataType() != null && verifyFileExists(ipFile.getMetadata())));
+
   }
 
   private static boolean verifyFileExists(IPFile ipFile){
