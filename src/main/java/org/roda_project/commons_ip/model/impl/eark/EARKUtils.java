@@ -525,8 +525,8 @@ public final class EARKUtils {
     return ip;
   }
 
-  public static void processIArxiuDCMetadata(IPInterface ip, Logger logger, MetsWrapper representationMetsWrapper,
-                                             IPRepresentation representation, List<MdSecType> metadataSecList, String metadataType, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
+  public static void processIArxiuRepresentationDocuments(IPInterface ip, Logger logger, MetsWrapper representationMetsWrapper,
+                                                          IPRepresentation representation, List<MdSecType> metadataSecList, String metadataType, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
 
     if (metadataSecList != null) {
       for (MdSecType metadataSec : metadataSecList) {
@@ -534,17 +534,24 @@ public final class EARKUtils {
         final String id = metadataSec.getID();
         final MdSecType.MdWrap mdXmlData = metadataSec.getMdWrap();
         final String mdType = mdXmlData.getMDTYPE();
+        // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
         final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
         final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath);
 
-        // sample, DOC_1_DC is Voc_document_exp: DOC_1 and EXP_1_DC is Voc_expedient: EXP_1
-        final String xmlDataKey = id.replace("_" + mdType, "");
+        // sample, DOC_1_DC is Voc_document_exp: DOC_1
+        final String expId = id.replace("_" + mdType, "");
         processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
 
-        final MdSecType.MdWrap expXmlData = expedientXmlData.get(xmlDataKey);
+        final MdSecType.MdWrap expXmlData = expedientXmlData.get(expId);
         if (expXmlData == null) {
           LOGGER.warn("Missing iArxiu SIP '{}' representation '{}' expedient XML data for DC metadata file '{}': {}",
-                  ip.getId(), representation.getRepresentationID(), xmlDataKey, expedientXmlData);
+                  ip.getId(), representation.getRepresentationID(), expId, expedientXmlData);
+        } else {
+          final String expMdType = expXmlData.getMDTYPE();
+          final String expMetadataPath = Paths.get(IPConstants.METADATA, expMdType).toString();
+          // sample: ...temp.../metadata/OTHER/DOC_1.xml
+          final MdSecType.MdRef expMdRef = xmlToFileHref(expId, basePath, expXmlData, expMetadataPath);
+          processMetadata(ip, logger, representation, expMdRef, expMdType, basePath);
         }
       }
     } else {

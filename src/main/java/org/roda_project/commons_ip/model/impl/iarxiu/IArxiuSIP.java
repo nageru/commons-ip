@@ -150,7 +150,7 @@ public class IArxiuSIP extends SIP {
     try {
       /* processing the binary file as representation data:
        *  IPRepresentation.List<IPFile> data <- metsWrapper.setDataDiv(firstLevel); */
-      IArxiuUtils.processMetadataAndFilesAsRepresentations(mainMetsWrapper, sip, sip.getBasePath());
+      IArxiuUtils.processRepresentations(mainMetsWrapper, sip, sip.getBasePath());
       // Analogue to EARKUtils -> processRepresentations(mainMetsWrapper, sip, LOGGER);
       // + EARKUtils -> processDescriptiveMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
 

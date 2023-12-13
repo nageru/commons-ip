@@ -267,7 +267,7 @@ public final class IArxiuUtils {
     return null;
   }
 
-  public static void processMetadataAndFilesAsRepresentations(MetsWrapper metsWrapper, IPInterface ip, Path basePath)
+  public static void processRepresentations(MetsWrapper metsWrapper, IPInterface ip, Path basePath)
           throws IPException {
 
     final DivType representationsDiv = metsWrapper.getRepresentationsDiv();
@@ -277,34 +277,35 @@ public final class IArxiuUtils {
       final IPRepresentation representation = new IPRepresentation(representationsDiv.getLABEL());
       ip.addRepresentation(representation);
 
-      final List<MdSecType> descriptiveMetadataFiles = new ArrayList<>();
+      /*  Expedient TODO move out of representations: metadata EXP_1_DC & data
+       *  dmdSec ID="EXP_1_DC": mdWrap MDTYPE="DC"
+       *  dmdSec ID="EXP_1": 1 = {MdSecType@3269}
+       *     mdtype = "OTHER"
+       *      OTHERMDTYPE="Voc_expedient" */
+
+      final List<MdSecType> documentsMetadata = new ArrayList<>();
       /* IPRepresentation.List<IPDescriptiveMetadata>.descriptiveMetadata"
        *   mdWrap = {MdSecType$MdWrap@3277}
        *   1 = {MdSecType@3269}
        *     mdtype = "DC" */
-      final Map<String, MdSecType.MdWrap> expedientXmlData = new HashMap<>();
+      final Map<String, MdSecType.MdWrap> documentXmlData = new HashMap<>();
       /*  1 = {MdSecType@3269}
        *     mdtype = "OTHER"
-       *      OTHERMDTYPE="Voc_expedient"
        *      OTHERMDTYPE="Voc_document_exp" */
       representationsDiv.getDMDID().stream().filter(o -> o instanceof MdSecType).map(o -> (MdSecType) o).filter(mdSecType -> mdSecType.getID() != null && mdSecType.getMdWrap() != null).forEach(mdSec -> {
         final MdSecType.MdWrap mdWRef = mdSec.getMdWrap();
         final String mdType = mdWRef.getMDTYPE();
         if (MetadataTypeEnum.DC.getType().equalsIgnoreCase(mdType)){
-          descriptiveMetadataFiles.add(mdSec);
+          documentsMetadata.add(mdSec);
         } else if (MetadataTypeEnum.OTHER.getType().equalsIgnoreCase(mdType)){
-          expedientXmlData.put(mdSec.getID(), mdSec.getMdWrap());
+          documentXmlData.put(mdSec.getID(), mdSec.getMdWrap());
         } else {
           LOGGER.warn("Unknown MD Type '{}' for iArxiu SIP {} representation '{}' metadata file: {}", mdType, ip.getId(), representation.getRepresentationID(), mdWRef);
         }
       });
 
-      EARKUtils.processIArxiuDCMetadata(ip, LOGGER, metsWrapper, representation, descriptiveMetadataFiles,
-              IPConstants.DESCRIPTIVE, expedientXmlData, basePath);
-      /*
-        TODO TYPE OTHER DescriptiveMetadataDiv().getXxxID -> processIArxiuExpMetadata xml types
-          -> TODO new -> processRepresentationXmlData  (<- instead of processRepresentation "DataFiles" use "XmlData")
-       */
+      EARKUtils.processIArxiuRepresentationDocuments(ip, LOGGER, metsWrapper, representation, documentsMetadata,
+              IPConstants.DESCRIPTIVE, documentXmlData, basePath);
 
       // as IPRepresentation.List<IPFile> data
       final List<DivType.Fptr> filePointers = getFilePointersList(representationsDiv);

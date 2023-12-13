@@ -65,20 +65,9 @@ public class IArxiuTest {
 
     /* TODO root descriptive metadata ID
         id = "uuid-608E04EC-A93A-484C-BADA-44AD3F7851E1"
-          -> mets:div ADMID="AMD_PAC" DMDID="EXP_1 EXP_1_DC" LABEL="UDL_1435231985409" ?
-		label = "descriptive"
+          -> mets:div ADMID="AMD_PAC" DMDID="EXP_1 EXP_1_DC" LABEL="UDL_1435231985409"
+		label = "descriptive" TODO same as in
      */
-
-    if (false) { // TODO preservationMetadata.. discard? is present? ignore?
-      Assert.assertNotEquals(0, preservationMetadata.size());
-      Assert.assertTrue("preservation metadata to be found", preservationMetadata.stream().anyMatch(ipMetadata -> {
-        final MetadataType preservationMetadataType = ipMetadata.getMetadataType();
-        final IPFile ipFile = ipMetadata.getMetadata();
-        final MetadataType.MetadataTypeEnum type = preservationMetadataType.getType();
-        return preservationMetadataType != null && type != null
-                && ipFile != null && isNotBlank(ipFile.getFileName());
-      }));
-    }
 
     final List<IPRepresentation> representations = iArxiuSIP.getRepresentations();
     Assert.assertNotNull(representations);
