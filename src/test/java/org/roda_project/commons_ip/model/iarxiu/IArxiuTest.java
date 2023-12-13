@@ -1,9 +1,6 @@
 package org.roda_project.commons_ip.model.iarxiu;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.model.impl.iarxiu.IArxiuSIP;
 import org.roda_project.commons_ip.utils.Utils;

@@ -7,6 +7,7 @@
  */
 package org.roda_project.commons_ip.utils;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType.FLocat;
@@ -16,6 +17,7 @@ import org.roda_project.commons_ip.mets_v1_11.beans.MetsType.MetsHdr.Agent;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.METSEnums.LocType;
 import org.slf4j.Logger;
+import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
 import javax.xml.XMLConstants;
@@ -25,12 +27,12 @@ import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.XMLGregorianCalendar;
-import javax.xml.transform.Source;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.SchemaFactory;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.file.Files;
@@ -42,6 +44,8 @@ import java.util.Map;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public final class METSUtils {
+
+  private static final TransformerFactory TRANSFORMER_FACTORY = TransformerFactory.newInstance();
 
   private METSUtils() {
     // do nothing
@@ -104,6 +108,24 @@ public final class METSUtils {
     }
 
     return tempMETSFile;
+  }
+
+  public static File marshallXmlToFile(Element element, Path targetPath) throws IOException, TransformerException {
+
+    final Transformer transformer = TRANSFORMER_FACTORY.newTransformer();
+    final DOMSource source = new DOMSource(element);
+
+    final File targetFile = targetPath.toFile();
+    if (!targetFile.exists()) {
+      FileUtils.forceMkdirParent(targetFile);
+    }
+
+    try (FileWriter writer = new FileWriter(targetFile)) {
+      StreamResult result = new StreamResult(writer);
+      transformer.transform(source, result);
+    }
+
+    return targetFile;
   }
 
   public static IPContentType getIPContentType(Mets mets, IPInterface ip) throws ParseException {
