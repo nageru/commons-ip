@@ -27,7 +27,10 @@ import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.XMLGregorianCalendar;
-import javax.xml.transform.*;
+import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
@@ -35,6 +38,7 @@ import javax.xml.validation.SchemaFactory;
 import java.io.*;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -110,20 +114,42 @@ public final class METSUtils {
     return tempMETSFile;
   }
 
-  public static File marshallXmlToFile(Element element, Path targetPath) throws IOException, TransformerException {
+  public static File marshallXmlToFile(Element element, Path targetPath, boolean cdataWrap) throws IOException, TransformerException {
+
+    final String name = element.getLocalName();
+    final DOMSource source = new DOMSource(element);
+
+    final StringBuilder xmlData = new StringBuilder();
+    final String xmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+    if (cdataWrap) {
+      xmlData.append(xmlHeader) // an XML with a root element and a CDATA
+              .append("<").append(name).append(">")
+              .append("<![CDATA[");
+    }
 
     final Transformer transformer = TRANSFORMER_FACTORY.newTransformer();
-    final DOMSource source = new DOMSource(element);
+    try (final StringWriter stringWriter = new StringWriter()) {
+
+      final StreamResult result = new StreamResult(stringWriter);
+      transformer.transform(source, result);
+
+      final String xmlContent = stringWriter.getBuffer().toString();
+      if (cdataWrap){ // appends content with no xml header
+        xmlData.append(xmlContent.replace(xmlHeader, ""));
+      } else { // appends as xml
+        xmlData.append(xmlContent);
+      }
+    }
+
+    if (cdataWrap) {
+      xmlData.append("]]>").append("</").append(name).append(">");
+    }
 
     final File targetFile = targetPath.toFile();
     if (!targetFile.exists()) {
       FileUtils.forceMkdirParent(targetFile);
     }
-
-    try (FileWriter writer = new FileWriter(targetFile)) {
-      StreamResult result = new StreamResult(writer);
-      transformer.transform(source, result);
-    }
+    FileUtils.writeStringToFile(targetFile, xmlData.toString(), StandardCharsets.UTF_8);
 
     return targetFile;
   }
