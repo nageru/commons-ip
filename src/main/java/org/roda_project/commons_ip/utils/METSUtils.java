@@ -7,6 +7,7 @@
  */
 package org.roda_project.commons_ip.utils;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType.FLocat;
@@ -16,6 +17,7 @@ import org.roda_project.commons_ip.mets_v1_11.beans.MetsType.MetsHdr.Agent;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.METSEnums.LocType;
 import org.slf4j.Logger;
+import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
 import javax.xml.XMLConstants;
@@ -26,13 +28,17 @@ import javax.xml.bind.Unmarshaller;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.XMLGregorianCalendar;
 import javax.xml.transform.Source;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.SchemaFactory;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -42,6 +48,8 @@ import java.util.Map;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 public final class METSUtils {
+
+  private static final TransformerFactory TRANSFORMER_FACTORY = TransformerFactory.newInstance();
 
   private METSUtils() {
     // do nothing
@@ -104,6 +112,46 @@ public final class METSUtils {
     }
 
     return tempMETSFile;
+  }
+
+  public static File marshallXmlToFile(Element element, Path targetPath, boolean cdataWrap) throws IOException, TransformerException {
+
+    final String name = element.getLocalName();
+    final DOMSource source = new DOMSource(element);
+
+    final StringBuilder xmlData = new StringBuilder();
+    final String xmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
+    if (cdataWrap) {
+      xmlData.append(xmlHeader) // an XML with a root element and a CDATA
+              .append("<").append(name).append(">")
+              .append("<![CDATA[");
+    }
+
+    final Transformer transformer = TRANSFORMER_FACTORY.newTransformer();
+    try (final StringWriter stringWriter = new StringWriter()) {
+
+      final StreamResult result = new StreamResult(stringWriter);
+      transformer.transform(source, result);
+
+      final String xmlContent = stringWriter.getBuffer().toString();
+      if (cdataWrap){ // appends content with no xml header
+        xmlData.append(xmlContent.replace(xmlHeader, ""));
+      } else { // appends as xml
+        xmlData.append(xmlContent);
+      }
+    }
+
+    if (cdataWrap) {
+      xmlData.append("]]>").append("</").append(name).append(">");
+    }
+
+    final File targetFile = targetPath.toFile();
+    if (!targetFile.exists()) {
+      FileUtils.forceMkdirParent(targetFile);
+    }
+    FileUtils.writeStringToFile(targetFile, xmlData.toString(), StandardCharsets.UTF_8);
+
+    return targetFile;
   }
 
   public static IPContentType getIPContentType(Mets mets, IPInterface ip) throws ParseException {
