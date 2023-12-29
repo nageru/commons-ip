@@ -59,18 +59,18 @@ public class IArxiuTest {
       .forEach(e -> LOGGER.error("Validation report entry: {}", e));
     Assert.assertTrue(iArxiuSIP.getValidationReport().isValid());
 
-    final List<IPDescriptiveMetadata> descriptiveMetadata = iArxiuSIP.getDescriptiveMetadata();
+    final List<IPDescriptiveMetadata> descriptiveMetadataList = iArxiuSIP.getDescriptiveMetadata();
     /* root descriptive metadata ID
       id = "uuid-608E04EC-A93A-484C-BADA-44AD3F7851E1"
         -> mets:div ADMID="AMD_PAC" DMDID="EXP_1 EXP_1_DC" LABEL="UDL_1435231985409"
       label = "descriptive" */
-    verifyExistingDescriptiveMetadataFiles(descriptiveMetadata);
+    verifyExistingDescriptiveMetadataFiles(descriptiveMetadataList);
 
     final List<IPRepresentation> representations = iArxiuSIP.getRepresentations();
     Assert.assertNotNull(representations);
     Assert.assertNotEquals(0, representations.size());
 
-    for(IPRepresentation representation : representations) {
+    for (IPRepresentation representation : representations) {
       Assert.assertNotNull(representation);
       final String representationId = representation.getRepresentationID(); // index.xml
       Assert.assertNotNull(representationId);

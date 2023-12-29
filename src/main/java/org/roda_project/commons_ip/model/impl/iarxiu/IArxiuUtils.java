@@ -6,10 +6,6 @@
 package org.roda_project.commons_ip.model.impl.iarxiu;
 
 import org.apache.commons.collections.ListUtils;
-import org.apache.commons.configuration2.PropertiesConfiguration;
-import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
-import org.apache.commons.configuration2.builder.fluent.Configurations;
-import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.*;
 import org.roda_project.commons_ip.model.*;
@@ -21,11 +17,9 @@ import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
 
 import javax.xml.bind.JAXBException;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.Map.Entry;
 import java.util.stream.Collectors;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -243,8 +237,7 @@ public final class IArxiuUtils {
        *      OTHERMDTYPE="Voc_document_exp" */
       loadDescriptiveMetadataFiles(mainDiv, documentsMetadata, documentXmlData);
 
-      EARKUtils.processIArxiuDocuments(ip, LOGGER, metsWrapper, documentsMetadata,
-              IPConstants.DESCRIPTIVE, documentXmlData, basePath);
+      EARKUtils.processIArxiuDocuments(ip, LOGGER, metsWrapper, documentsMetadata, documentXmlData, basePath);
 
     } // already validation error on pre-processing: ValidationReport MAIN_METS_HAS_NO_E_ARK_STRUCT_MAP
   }
@@ -271,7 +264,7 @@ public final class IArxiuUtils {
       loadDescriptiveMetadataFiles(representationsDiv, documentsMetadata, documentXmlData);
 
       EARKUtils.processIArxiuRepresentationDocuments(ip, LOGGER, metsWrapper, representation, documentsMetadata,
-              IPConstants.DESCRIPTIVE, documentXmlData, basePath);
+              documentXmlData, basePath);
 
       // as IPRepresentation.List<IPFile> data
       final List<DivType.Fptr> filePointers = getFilePointersList(representationsDiv);
@@ -290,13 +283,14 @@ public final class IArxiuUtils {
     for (MdSecType metadata : metadataTypes) {
       final MdSecType.MdWrap mdWRef = metadata.getMdWrap();
       final String mdType = mdWRef.getMDTYPE();
+      final String otherMdType = mdWRef.getOTHERMDTYPE();
       /* 1 = {MdSecType@3269} mdtype = "DC" */
       if (MetadataTypeEnum.DC.getType().equalsIgnoreCase(mdType)) {
         metadataList.add(metadata);
       } else if (MetadataTypeEnum.OTHER.getType().equalsIgnoreCase(mdType)) { /*  MdSecType mdtype = "OTHER" */
         xmlDataMap.put(metadata.getID(), metadata.getMdWrap());
       } else {
-        LOGGER.warn("Unknown MD Type '{}' for iArxiu metadata: {}", mdType, mdWRef);
+        LOGGER.warn("Unknown MD Type '{}' (other '{}') for iArxiu metadata: {}", mdType, otherMdType, mdWRef);
       }
     }
   }

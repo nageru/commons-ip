@@ -16,11 +16,17 @@ import org.apache.commons.lang3.StringUtils;
 public class MetadataType implements Serializable {
   private static final long serialVersionUID = 9052247527983339112L;
 
-  public enum MetadataTypeEnum { // TODO VOC_EXP <- URN de vocabulari: urn:iarxiu:2.0:vocabularies:catcert:Voc_document_exp
+  public enum MetadataTypeEnum {
     MARC("MARC"), MODS("MODS"), EAD("EAD"), DC("DC"), NISOIMG("NISOIMG"), LCAV("LC-AV"), VRA("VRA"), TEIHDR("TEIHDR"),
     DDI("DDI"), FGDC("FGDC"), LOM("LOM"), PREMIS("PREMIS"), PREMISOBJECT("PREMIS:OBJECT"), PREMISAGENT("PREMIS:AGENT"),
     PREMISRIGHTS("PREMIS:RIGHTS"), PREMISEVENT("PREMIS:EVENT"), TEXTMD("TEXTMD"), METSRIGHTS("METSRIGHTS"),
-    ISO191152003("ISO 19115:2003"), NAP("NAP"), EACCPF("EAC-CPF"), LIDO("LIDO"), OTHER("OTHER");
+    ISO191152003("ISO 19115:2003"), NAP("NAP"), EACCPF("EAC-CPF"), LIDO("LIDO"),
+    OTHER("OTHER"),
+    /*  Other iArxiu Md Types: MIMETYPE="text/xml"
+      - OTHERMDTYPE="urn:iarxiu:2.0:vocabularies:cesca:Voc_document_exp"
+      - OTHERMDTYPE="urn:iarxiu:2.0:vocabularies:cesca:Voc_expedient"
+     */
+    OTHER_VOC_EXP("Voc_expedient"), OTHER_VOC_DOC_EXP("Voc_document_exp");
 
     protected static final Map<String, MetadataTypeEnum> typeToEnum = new HashMap<>();
     static {
@@ -31,6 +37,10 @@ public class MetadataType implements Serializable {
       typeToEnum.put("PREMIS:EVENT", MetadataTypeEnum.PREMISEVENT);
       typeToEnum.put("ISO 19115:2003", MetadataTypeEnum.ISO191152003);
       typeToEnum.put("EAC-CPF", MetadataTypeEnum.EACCPF);
+
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_EXPEDIENT", MetadataTypeEnum.OTHER_VOC_EXP);
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT_EXP", MetadataTypeEnum.OTHER_VOC_DOC_EXP);
+
     }
 
     private final String type;
@@ -52,17 +62,28 @@ public class MetadataType implements Serializable {
   private MetadataTypeEnum type;
   private String otherType;
 
-  public MetadataType(final String type) {
-    try {
-      this.type = MetadataTypeEnum.valueOf(type);
+  public MetadataType(String type) {
+    final MetadataTypeEnum typeEnum = match(type);
+    if (typeEnum != null){
+      this.type = typeEnum;
       this.otherType = "";
+    } else {
+      this.type = MetadataTypeEnum.OTHER;
+      this.otherType = type;
+    }
+  }
+
+  public static MetadataTypeEnum match(String type){
+    if (type == null){
+      return null;
+    }
+    try {
+      return MetadataTypeEnum.valueOf(type);
     } catch (IllegalArgumentException | NullPointerException e) {
-      if (MetadataTypeEnum.typeToEnum.containsKey(type)) {
-        this.type = MetadataTypeEnum.typeToEnum.get(type);
-        this.otherType = "";
+      if (MetadataTypeEnum.typeToEnum.containsKey(type.toUpperCase())) {
+        return MetadataTypeEnum.typeToEnum.get(type.toUpperCase());
       } else {
-        this.type = MetadataTypeEnum.OTHER;
-        this.otherType = type;
+        return null;
       }
     }
   }

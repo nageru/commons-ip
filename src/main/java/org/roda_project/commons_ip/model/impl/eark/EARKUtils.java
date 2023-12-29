@@ -29,10 +29,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.roda_project.commons_ip.model.impl.CommonSipUtils.validateFileType;
@@ -526,50 +523,87 @@ public final class EARKUtils {
   }
 
   public static void processIArxiuDocuments(IPInterface ip, Logger logger, MetsWrapper mainMetsWrapper,
-                                                          List<MdSecType> metadataSecList, String metadataType, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
-    processIArxiuDocuments(ip, logger, mainMetsWrapper, null, metadataSecList, metadataType, expedientXmlData, basePath);
+                                            List<MdSecType> metadataSecList, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
+    processIArxiuMetadataDocuments(ip, logger, mainMetsWrapper, null, metadataSecList, basePath);
+    processIArxiuMetadataExpedients(ip, logger, null, expedientXmlData, basePath);
+    processIArxiuOtherDocuments(ip, logger, null, expedientXmlData, basePath);
   }
 
   public static void processIArxiuRepresentationDocuments(IPInterface ip, Logger logger, MetsWrapper representationMetsWrapper,
-                                                          IPRepresentation representation, List<MdSecType> metadataSecList, String metadataType, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
-    processIArxiuDocuments(ip, logger, representationMetsWrapper, representation, metadataSecList, metadataType, expedientXmlData, basePath);
+                                                          IPRepresentation representation, List<MdSecType> metadataSecList, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
+    processIArxiuMetadataDocuments(ip, logger, representationMetsWrapper, representation, metadataSecList, basePath);
+    processIArxiuMetadataExpedients(ip, logger, representation, expedientXmlData, basePath);
+    processIArxiuOtherDocuments(ip, logger, representation, expedientXmlData, basePath);
   }
 
-  private static void processIArxiuDocuments(IPInterface ip, Logger logger, MetsWrapper metsWrapper, IPRepresentation representation,
-                                             List<MdSecType> metadataSecList, String metadataType, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
+  private static void processIArxiuMetadataDocuments(IPInterface ip, Logger logger, MetsWrapper metsWrapper, IPRepresentation representation,
+                                                        List<MdSecType> metadataSecList, Path basePath) throws IPException {
 
+    final String metadataType = IPConstants.DESCRIPTIVE;
     if (metadataSecList != null) {
       for (MdSecType metadataSec : metadataSecList) {
 
         final String id = metadataSec.getID();
         final MdSecType.MdWrap mdXmlData = metadataSec.getMdWrap();
-        final String mdType = mdXmlData.getMDTYPE();
         // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
         final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
         final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath, representation == null);
 
         // sample, DOC_1_DC is Voc_document_exp: DOC_1
-        final String expId = id.replace("_" + mdType, "");
         processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
-
-        final MdSecType.MdWrap expXmlData = expedientXmlData.get(expId);
-        if (expXmlData == null) {
-          LOGGER.warn("Missing iArxiu SIP '{}' {}expedient XML data for DC metadata file '{}': {}",
-                  ip.getId(), representation!= null ?  "representation '"+representation.getRepresentationID()+"' " : "",
-                  expId, expedientXmlData);
-        } else {
-          final String expMdType = expXmlData.getMDTYPE();
-          final String expMetadataPath = Paths.get(IPConstants.METADATA, expMdType).toString();
-          // sample: ...temp.../metadata/OTHER/DOC_1.xml
-          final MdSecType.MdRef expMdRef = xmlToFileHref(expId, basePath, expXmlData, expMetadataPath);
-          processMetadata(ip, logger, representation, expMdRef, expMdType, basePath);
-        }
       }
     } else {
       ValidationUtils.addIssue(ip.getValidationReport(),
               ValidationConstants.getMetadataFileNotFoundString(metadataType), ValidationEntry.LEVEL.ERROR,
               ip.getBasePath(), metsWrapper.getMetsPath());
     }
+  }
+
+  private static void processIArxiuMetadataExpedients(IPInterface ip, Logger logger, IPRepresentation representation,
+                                                      Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
+
+    final Set<String> expIdSet = expedientXmlData.keySet();
+    for (String expId : expIdSet) {
+      final MdSecType.MdWrap expXmlData = expedientXmlData.get(expId);
+      if (expXmlData == null) {
+        LOGGER.warn("Missing iArxiu SIP '{}' {}expedient XML data for Exp metadata file '{}': {}",
+                ip.getId(), representation != null ? "representation '" + representation.getRepresentationID() + "' " : "",
+                expId, expedientXmlData);
+        expedientXmlData.remove(expId); // not attempt to process anymore
+      } else {
+        final MetadataType.MetadataTypeEnum type = MetadataType.match(expXmlData.getMDTYPE());
+        final MetadataType.MetadataTypeEnum otherType = MetadataType.match(expXmlData.getOTHERMDTYPE());
+        if (type != null && type != MetadataType.MetadataTypeEnum.OTHER || otherType != null){
+          // sample: ...temp.../metadata/OTHER/DOC_1.xml
+          processIArxiuMetadataDocument(ip, logger, representation, expXmlData, expId, IPConstants.DESCRIPTIVE, basePath);
+          expedientXmlData.remove(expId); // processed once only
+        }
+      }
+    }
+  }
+
+  private static void processIArxiuOtherDocuments(IPInterface ip, Logger logger, IPRepresentation representation,
+                                                  Map<String, MdSecType.MdWrap> documentsXmlData, Path basePath) throws IPException {
+
+    final Set<String> docIdSet = documentsXmlData.keySet();
+    for (String docId : docIdSet) {
+      final MdSecType.MdWrap expXmlData = documentsXmlData.get(docId);
+      final String expMdType = expXmlData.getMDTYPE(); // OTHER
+      // .../metadata/OTHER/....xml
+      processIArxiuMetadataDocument(ip, logger, representation, expXmlData, docId, expMdType, basePath);
+      documentsXmlData.remove(docId); // processed once only
+    }
+  }
+
+  private static void processIArxiuMetadataDocument(IPInterface ip, Logger logger, IPRepresentation representation, MdSecType.MdWrap mdXmlData,
+                                                    String id, String metadataType, Path basePath) throws IPException {
+
+    // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
+    final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
+    final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath, representation == null);
+
+    // sample, DOC_1_DC is Voc_document_exp: DOC_1
+    processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
   }
 
   private static MdRef xmlToFileHref(String id, Path basePath, MdSecType.MdWrap mdWrap, String metadataPath) {
@@ -639,7 +673,7 @@ public final class EARKUtils {
         ValidationConstants.getMetadataFileFoundWithMatchingChecksumString(metadataType), ip.getBasePath(), filePath);
 
       if (IPConstants.DESCRIPTIVE.equalsIgnoreCase(metadataType)) {
-        MetadataType dmdType = new MetadataType(mdRef.getMDTYPE().toUpperCase());
+        final MetadataType dmdType = new MetadataType(mdRef.getMDTYPE().toUpperCase());
         String dmdVersion = null;
         try {
           dmdVersion = mdRef.getMDTYPEVERSION();
