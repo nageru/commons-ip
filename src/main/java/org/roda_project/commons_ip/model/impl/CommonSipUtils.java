@@ -6,15 +6,47 @@ import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.utils.Utils;
 import org.roda_project.commons_ip.utils.ValidationConstants;
 import org.roda_project.commons_ip.utils.ValidationUtils;
+import org.slf4j.Logger;
 
+import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.roda_project.commons_ip.utils.Utils.validateFile;
 
 public class CommonSipUtils {
+
+    /** gets the main mets file from the root of the ip path
+     * validates if mets file found
+     * @param logger
+     * @param validation
+     * @param ipPath
+     * @return the main mets file path if found; null otherwise */
+    public static Path getMainMETSFile(Logger logger, ValidationReport validation, Path ipPath) {
+
+        final Path mainMETSFile;
+        final File ipFile;
+        if (ipPath != null && (ipFile = ipPath.toFile()).isDirectory()) {
+            mainMETSFile = Stream.of(ipFile.listFiles())
+                    .filter(file -> !file.isDirectory() && IPConstants.METS_FILE.equalsIgnoreCase(file.getName())).map(file -> file.toPath())
+                    .findAny().orElse(null);
+        } else {
+            mainMETSFile = null;
+        }
+
+        if (mainMETSFile != null && Files.exists(mainMETSFile)) {
+            ValidationUtils.addInfo(validation, ValidationConstants.MAIN_METS_FILE_FOUND, ipPath, mainMETSFile);
+            return mainMETSFile;
+        } else {
+            ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_FILE_NOT_FOUND,
+                    ValidationEntry.LEVEL.ERROR, ipPath, mainMETSFile);
+            logger.error("Validation {} error: {}", ipPath, ValidationConstants.MAIN_METS_FILE_NOT_FOUND);
+            return null;
+        }
+    }
 
     public static void processFileType(IPInterface ip, DivType container, FileType fileType, String folder, Path basePath) {
         if (fileType == null || fileType.getFLocat() != null) {

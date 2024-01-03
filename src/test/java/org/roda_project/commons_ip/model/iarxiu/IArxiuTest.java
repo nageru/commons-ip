@@ -34,7 +34,7 @@ public class IArxiuTest {
   @Test
   public void readAndParseIArxiuSIP() throws ParseException {
     LOGGER.info("Creating iArxiu SIP");
-    Path iArxiuSIP = readIArxiuSIP("cesca_earxiu1.zip");
+    final Path iArxiuSIP = readIArxiuSIP("cesca_earxiu1.zip");
     Assert.assertNotNull(iArxiuSIP);
     LOGGER.info("Done reading iArxiu SIP");
 

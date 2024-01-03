@@ -9,6 +9,7 @@ import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
 import org.roda_project.commons_ip.mets_v1_11.beans.MetsType;
 import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
 import org.roda_project.commons_ip.model.*;
+import org.roda_project.commons_ip.model.impl.CommonSipUtils;
 import org.roda_project.commons_ip.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,12 +90,12 @@ public class IArxiuSIP extends SIP {
     sip.setBasePath(sipPath);
 
     final ValidationReport validationReport = sip.getValidationReport();
-    final Path mainMetsFile = IArxiuUtils.getMainMetsFile(validationReport, sipPath);
+    final Path mainMetsFile = CommonSipUtils.getMainMETSFile(LOGGER, validationReport, sipPath);
     if (!validationReport.isValid()) {
       return sip;
     }
 
-    final Mets mainMets = IArxiuUtils.parseMainMets(validationReport, sipPath, mainMetsFile);
+    final Mets mainMets = IArxiuUtils.parseMainMets(LOGGER, validationReport, sipPath, mainMetsFile);
     if (!validationReport.isValid()){
       return sip;
     }

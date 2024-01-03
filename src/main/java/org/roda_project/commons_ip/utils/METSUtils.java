@@ -38,7 +38,6 @@ import javax.xml.validation.SchemaFactory;
 import java.io.*;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -55,34 +54,36 @@ public final class METSUtils {
     // do nothing
   }
 
-  public static Mets instantiateMETS1_11FromFile(Path metsFile) throws JAXBException, SAXException {
-    return instantiateMETSFromFile(metsFile, "/schemas/mets1_11.xsd");
+  public static Mets instantiateMETS1_11FromFile(Logger logger, Path metsFile) throws JAXBException, SAXException {
+    return instantiateMETSFromFile(logger, metsFile, "/schemas/mets1_11.xsd");
   }
 
-  public static Mets instantiateIArxiuMETSFromFile(Path metsFile) throws JAXBException, SAXException {
-    return instantiateMETSFromFile(metsFile, "/schemas-iArxiu/mets.xsd" );
+  public static Mets instantiateIArxiuMETSFromFile(Logger logger, Path metsFile) throws JAXBException, SAXException {
+    return instantiateMETSFromFile(logger, metsFile, "/schemas-iArxiu/mets.xsd" );
   }
 
-  public static Mets instantiateMETSFromFile(Path metsFile, String... schemaFiles) throws JAXBException, SAXException {
-    return unmarshallMETS(getMETSUnmarshaller(schemaFiles), metsFile);
-  }
-  public static Mets instantiateRelaxedMETSFromFile(Path metsFile) throws JAXBException, SAXException {
-    return unmarshallMETS(getRelaxedMETSUnmarshaller(), metsFile);
+  public static Mets instantiateMETSFromFile(Logger logger, Path metsFile, String... schemaFiles) throws JAXBException, SAXException {
+    return unmarshallMETS(getMETSUnmarshaller(logger, schemaFiles), metsFile);
   }
 
   private static Mets unmarshallMETS(Unmarshaller unmarshaller, Path metsFile) throws JAXBException {
     return (Mets) unmarshaller.unmarshal(metsFile.toFile());
   }
 
-  private static Unmarshaller getMETSUnmarshaller(String... schemaFiles) throws JAXBException, SAXException {
+  private static Unmarshaller getMETSUnmarshaller(Logger logger, String... schemaFiles) throws JAXBException, SAXException {
     final Unmarshaller jaxbUnmarshaller = getRelaxedMETSUnmarshaller();
 
     final SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
     factory.setResourceResolver(new ResourceResolver());
 
     for (String schemaFile: schemaFiles) {
-        final Source metsSchemaSource = new StreamSource(METSUtils.class.getResourceAsStream(schemaFile));
+      final InputStream schemaIs = METSUtils.class.getResourceAsStream(schemaFile);
+      if (schemaIs != null ){
+        final Source metsSchemaSource = new StreamSource(schemaIs);
         jaxbUnmarshaller.setSchema(factory.newSchema(metsSchemaSource));
+      } else {
+        logger.warn("Schema file {} not found for METS unmarshall!", schemaFile);
+      }
     }
 
     return jaxbUnmarshaller;

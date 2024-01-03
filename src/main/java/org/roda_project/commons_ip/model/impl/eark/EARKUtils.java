@@ -279,12 +279,13 @@ public final class EARKUtils {
   }
 
   protected static MetsWrapper processMainMets(IPInterface ip, Path ipPath) {
-    Path mainMETSFile = ipPath.resolve(IPConstants.METS_FILE);
+
+    final Path mainMETSFile = CommonSipUtils.getMainMETSFile(LOGGER, ip.getValidationReport(), ipPath);
     Mets mainMets = null;
-    if (Files.exists(mainMETSFile)) {
+    if (mainMETSFile != null) {
       ValidationUtils.addInfo(ip.getValidationReport(), ValidationConstants.MAIN_METS_FILE_FOUND, ipPath, mainMETSFile);
       try {
-        mainMets = METSUtils.instantiateMETS1_11FromFile(mainMETSFile);
+        mainMets = METSUtils.instantiateMETS1_11FromFile(LOGGER, mainMETSFile);
         ip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
         ip.setCreateDate(mainMets.getMetsHdr().getCREATEDATE());
         ip.setModificationDate(mainMets.getMetsHdr().getLASTMODDATE());
@@ -298,9 +299,6 @@ public final class EARKUtils {
         ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.MAIN_METS_NOT_VALID,
           ValidationEntry.LEVEL.ERROR, e, ip.getBasePath(), mainMETSFile);
       }
-    } else {
-      ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.MAIN_METS_FILE_NOT_FOUND,
-        ValidationEntry.LEVEL.ERROR, ip.getBasePath(), mainMETSFile);
     }
     return new MetsWrapper(mainMets, mainMETSFile);
   }
@@ -329,7 +327,7 @@ public final class EARKUtils {
       ValidationUtils.addInfo(ip.getValidationReport(), ValidationConstants.REPRESENTATION_METS_FILE_FOUND,
         ip.getBasePath(), representationMetsFile);
       try {
-        representationMets = METSUtils.instantiateMETS1_11FromFile(representationMetsFile);
+        representationMets = METSUtils.instantiateMETS1_11FromFile(LOGGER, representationMetsFile);
         setRepresentationContentType(representationMets, representation);
         ValidationUtils.addInfo(ip.getValidationReport(), ValidationConstants.REPRESENTATION_METS_IS_VALID,
           ip.getBasePath(), representationMetsFile);

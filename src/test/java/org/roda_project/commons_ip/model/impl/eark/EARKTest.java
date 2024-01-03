@@ -77,7 +77,7 @@ public class EARKTest {
   @Test
   public void readAndParseEARKSIP() throws ParseException {
     LOGGER.info("Creating E-ARK SIP");
-    Path zipSIP = readEarkSIP("eARK1-SIP - uuid-eb977e52-66d8-4821-b8b4-bc5e4989729e.zip");
+    final Path zipSIP = readEarkSIP("eARK1-SIP - uuid-eb977e52-66d8-4821-b8b4-bc5e4989729e.zip");
     Assert.assertNotNull(zipSIP);
     LOGGER.info("Done reading E-ARK SIP: {}", zipSIP);
 

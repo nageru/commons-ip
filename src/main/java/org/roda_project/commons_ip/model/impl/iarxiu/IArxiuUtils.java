@@ -28,41 +28,25 @@ import static org.roda_project.commons_ip.model.impl.CommonSipUtils.validateFile
 
 public final class IArxiuUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(IArxiuUtils.class);
-  private static final String METADATA_TYPE = "key-value";
 
   private IArxiuUtils() {
     // do nothing
   }
 
-  /** gets the main mets file from the root of the ip path
-   * validates if mets file found
-   * @param validation
-   * @param ipPath
-   * @return the main mets file path if found; null otherwise */
-  public static Path getMainMetsFile(ValidationReport validation, Path ipPath) {
-    final Path mainMETSFile = ipPath.resolve(IPConstants.METS_FILE);
-    if (Files.exists(mainMETSFile)) {
-      ValidationUtils.addInfo(validation, ValidationConstants.MAIN_METS_FILE_FOUND, ipPath, mainMETSFile);
-      return mainMETSFile;
-    } else {
-      ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_FILE_NOT_FOUND,
-              ValidationEntry.LEVEL.ERROR, ipPath, mainMETSFile);
-      return null;
-    }
-  }
   /**
    * extracts and validates the main mets from the main mets file
-   *
+   * @param logger
    * @param validation updates the done validations
    * @param ipPath
    * @return if the mets parsed null otherwise
    */
-  public static Mets parseMainMets(ValidationReport validation, Path ipPath, Path mainMETSFile) {
+  public static Mets parseMainMets(Logger logger, ValidationReport validation, Path ipPath, Path mainMETSFile) {
       try {
-        return METSUtils.instantiateIArxiuMETSFromFile(mainMETSFile);
+        return METSUtils.instantiateIArxiuMETSFromFile(logger, mainMETSFile);
       } catch (JAXBException | SAXException e) {
         ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_NOT_VALID,
                 ValidationEntry.LEVEL.ERROR, e, ipPath, mainMETSFile);
+        logger.error("Error parsing IP '{}' main METS '{}': {}", ipPath, mainMETSFile, e);
         return null;
       }
   }
@@ -110,10 +94,9 @@ public final class IArxiuUtils {
     final long smCount = metsStructMapList.size();
     if (smCount == 0) {
       LOGGER.error("Main METS.xml file has no structural map for IArxiu '{}' ID", COMMON_SPEC_STRUCTURAL_MAP_ID);
-      structMap = null;
       ValidationUtils.addIssue(ip.getValidationReport(),
               ValidationConstants.MAIN_METS_HAS_NO_I_ARXIU_STRUCT_MAP,
-              ValidationEntry.LEVEL.ERROR, structMap, ip.getBasePath(), metsWrapper.getMetsPath());
+              ValidationEntry.LEVEL.ERROR, structMap = null, ip.getBasePath(), metsWrapper.getMetsPath());
     } else {
       structMap = metsStructMapList.remove(0);
       if (smCount > 1){
@@ -130,6 +113,7 @@ public final class IArxiuUtils {
 
     if (structMap == null || structMap.getDiv() == null){
       LOGGER.warn("Mets has no struct map information! {}: {}", metsWrapper, structMap);
+      return;
     }
 
     final DivType aipDiv = structMap.getDiv();
@@ -190,9 +174,9 @@ public final class IArxiuUtils {
 
   private static List<MdSecType> findMainDescriptiveMetadataFiles(DivType fdiv){
     if (fdiv == null || fdiv.getDMDID() == null){
-      return ListUtils.EMPTY_LIST;
+      return new ArrayList<>();
     }
-    return fdiv.getDMDID().stream().filter(o -> o != null && o instanceof MdSecType).map(md -> ((MdSecType) md)).filter(mdSecType -> mdSecType.getID() != null && mdSecType.getMdWrap() != null).collect(Collectors.toList());
+    return fdiv.getDMDID().stream().filter(o -> o instanceof MdSecType).map(md -> ((MdSecType) md)).filter(mdSecType -> mdSecType.getID() != null && mdSecType.getMdWrap() != null).collect(Collectors.toList());
   }
 
   private static DivType findFilesMetadataDiv(DivType fdiv){
@@ -208,7 +192,7 @@ public final class IArxiuUtils {
               .filter(div -> div != null && isNotBlank(div.getLABEL()) && (labelId ==  null || div.getLABEL().equalsIgnoreCase(labelId))).collect(Collectors.toList());
 
       final List<String> relevant2ndLevelsFilePointers = new ArrayList<>();
-      relevant2ndLevels.stream().map(div -> getFilePointerFileIds(div)).forEach(filePointers -> relevant2ndLevelsFilePointers.addAll(filePointers));
+      relevant2ndLevels.stream().map(IArxiuUtils::getFilePointerFileIds).forEach(relevant2ndLevelsFilePointers::addAll);
       if (!relevant2ndLevelsFilePointers.isEmpty()){
         LOGGER.info("Div label '{}' with File Metadata File Pointer files in secondary levels: {}", labelId, relevant2ndLevelsFilePointers);
         return fdiv;
@@ -333,56 +317,6 @@ public final class IArxiuUtils {
               metsWrapper.getMetsPath());
     }
   }
-  /**
-   * @param ip
-   * @param div
-   * @param folder SCHEMAS, DOCUMENTATION, SUBMISSION
-   * @param basePath */
-  protected static void processByFolderFile(IPInterface ip, DivType div, String folder, Path basePath) {
-    final List<DivType.Fptr> filePointers = getFilePointersList(div);
-    for (DivType.Fptr fptr : filePointers) {
-      final List<FileType> fileTypes = getFileTypes(fptr);
-      for (FileType fileType : fileTypes) {
-        if (fileType.getFLocat() != null) {
-          FileType.FLocat fLocat = fileType.getFLocat().get(0);
-          String href = Utils.extractedRelativePathFromHref(fLocat.getHref());
-          Path filePath = basePath.resolve(href);
-
-          if (Files.exists(filePath)) {
-            List<String> fileRelativeFolders = Utils.getFileRelativeFolders(basePath.resolve(folder), filePath);
-            Optional<IPFile> file = validateFileType(ip, filePath, fileType, fileRelativeFolders);
-
-            if (file.isPresent()) {
-              if (IPConstants.SCHEMAS.equalsIgnoreCase(folder)) {
-                ValidationUtils.addInfo(ip.getValidationReport(),
-                        ValidationConstants.SCHEMA_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
-                ip.addSchema(file.get());
-              } else if (IPConstants.DOCUMENTATION.equalsIgnoreCase(folder)) {
-                ValidationUtils.addInfo(ip.getValidationReport(),
-                        ValidationConstants.DOCUMENTATION_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
-                ip.addDocumentation(file.get());
-              } else if (IPConstants.SUBMISSION.equalsIgnoreCase(folder) && ip instanceof AIP) {
-                ValidationUtils.addInfo(ip.getValidationReport(),
-                        ValidationConstants.SUBMISSION_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
-                ((AIP) ip).addSubmission(file.get());
-              }
-            }
-          } else {
-            if (IPConstants.SCHEMAS.equalsIgnoreCase(folder)) {
-              ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.SCHEMA_FILE_NOT_FOUND,
-                      ValidationEntry.LEVEL.ERROR, div, ip.getBasePath(), filePath);
-            } else if (IPConstants.DOCUMENTATION.equalsIgnoreCase(folder)) {
-              ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.DOCUMENTATION_FILE_NOT_FOUND,
-                      ValidationEntry.LEVEL.ERROR, div, ip.getBasePath(), filePath);
-            } else if (IPConstants.SUBMISSION.equalsIgnoreCase(folder)) {
-              ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.SUBMISSION_FILE_NOT_FOUND,
-                      ValidationEntry.LEVEL.ERROR, div, ip.getBasePath(), filePath);
-            }
-          }
-        }
-      }
-    }
-  }
 
   private static String getLabel(DivType div){
     if (div == null){
@@ -393,7 +327,7 @@ public final class IArxiuUtils {
 
   private static List<String> getFilePointerFileIds(DivType div){
     if (div == null || div.getFptr() == null){
-      return ListUtils.EMPTY_LIST;
+      return new ArrayList<>();
     }
     return div.getFptr().stream().filter(fptrDiv -> fptrDiv != null && (fptrDiv.getFILEID() instanceof MetsType.FileSec.FileGrp)).map(fptrDiv -> (MetsType.FileSec.FileGrp)fptrDiv.getFILEID())
             .filter(fileGrp -> isNotBlank(fileGrp.getID())).map(fileGrp -> fileGrp.getID().trim()).collect(Collectors.toList());
@@ -401,23 +335,23 @@ public final class IArxiuUtils {
 
   private static List<DivType.Fptr> getFilePointersList(DivType div){
     if (div == null){
-      return ListUtils.EMPTY_LIST;
+      return new ArrayList<>();
     }
     if (div.getFptr() != null && !div.getFptr().isEmpty() // has something
             || div.getDiv() == null || div.getDiv().isEmpty()) { // has no child to look
-      return ListUtils.EMPTY_LIST;
+      return new ArrayList<>();
     }
 
     final List<DivType.Fptr> filePointersList = new ArrayList<>();
 
-    div.getDiv().stream().filter(dv -> dv != null && dv.getFptr() != null && !dv.getFptr().isEmpty()).map(dv -> dv.getFptr()).forEach(fps -> filePointersList.addAll(fps));
+    div.getDiv().stream().filter(dv -> dv != null && dv.getFptr() != null && !dv.getFptr().isEmpty()).map(DivType::getFptr).forEach(fps -> filePointersList.addAll(fps));
     return filePointersList;
   }
 
   private static List<FileType> getFileTypes(DivType.Fptr filePointer){
     final Object fileId = filePointer.getFILEID();
     if (fileId == null){
-      return ListUtils.EMPTY_LIST;
+      return new ArrayList<>();
     }
 
     if (fileId instanceof FileType){
@@ -428,7 +362,7 @@ public final class IArxiuUtils {
       return ((MetsType.FileSec.FileGrp) fileId).getFile();
     } else {
       LOGGER.warn("Unknown file id ({}) under file pointer: {}", fileId, filePointer);
-      return ListUtils.EMPTY_LIST;
+      return new ArrayList<>();
     }
   }
 }
