@@ -547,7 +547,7 @@ public final class EARKUtils {
         final MdSecType.MdWrap mdXmlData = metadataSec.getMdWrap();
         // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
         final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
-        final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath, representation == null);
+        final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath);
 
         // sample, DOC_1_DC is Voc_document_exp: DOC_1
         processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
@@ -600,17 +600,13 @@ public final class EARKUtils {
 
     // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
     final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
-    final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath, representation == null);
+    final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath);
 
     // sample, DOC_1_DC is Voc_document_exp: DOC_1
     processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
   }
 
   private static MdRef xmlToFileHref(String id, Path basePath, MdSecType.MdWrap mdWrap, String metadataPath) {
-    return xmlToFileHref(id, basePath, mdWrap, metadataPath, false);
-  }
-
-  private static MdRef xmlToFileHref(String id, Path basePath, MdSecType.MdWrap mdWrap, String metadataPath, boolean main) {
 
     final String mimetype = mdWrap.getMIMETYPE();
 
@@ -636,7 +632,7 @@ public final class EARKUtils {
               mdWrap.getID(), mdWrap, metadataPath);
     } else {
       try {
-        final File metadataFile = METSUtils.marshallXmlToFile(xmlData, metadataFilePath, main);
+        final File metadataFile = METSUtils.marshallXmlToFile(xmlData, metadataFilePath);
         size = metadataFile.length();
       } catch (IOException | TransformerException e) {
         LOGGER.error("Failed to convert '{}' xml data id '{}' ({}) to metadata href file '{}': {}",

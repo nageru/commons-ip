@@ -114,42 +114,20 @@ public final class METSUtils {
     return tempMETSFile;
   }
 
-  public static File marshallXmlToFile(Element element, Path targetPath, boolean cdataWrap) throws IOException, TransformerException {
-
-    final String name = element.getLocalName();
-    final DOMSource source = new DOMSource(element);
-
-    final StringBuilder xmlData = new StringBuilder();
-    final String xmlHeader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
-    if (cdataWrap) {
-      xmlData.append(xmlHeader) // an XML with a root element and a CDATA
-              .append("<").append(name).append(">")
-              .append("<![CDATA[");
-    }
+  public static File marshallXmlToFile(Element element, Path targetPath) throws IOException, TransformerException {
 
     final Transformer transformer = TRANSFORMER_FACTORY.newTransformer();
-    try (final StringWriter stringWriter = new StringWriter()) {
-
-      final StreamResult result = new StreamResult(stringWriter);
-      transformer.transform(source, result);
-
-      final String xmlContent = stringWriter.getBuffer().toString();
-      if (cdataWrap){ // appends content with no xml header
-        xmlData.append(xmlContent.replace(xmlHeader, ""));
-      } else { // appends as xml
-        xmlData.append(xmlContent);
-      }
-    }
-
-    if (cdataWrap) {
-      xmlData.append("]]>").append("</").append(name).append(">");
-    }
+    final DOMSource source = new DOMSource(element);
 
     final File targetFile = targetPath.toFile();
     if (!targetFile.exists()) {
       FileUtils.forceMkdirParent(targetFile);
     }
-    FileUtils.writeStringToFile(targetFile, xmlData.toString(), StandardCharsets.UTF_8);
+
+    try (FileWriter writer = new FileWriter(targetFile)) {
+      final StreamResult result = new StreamResult(writer);
+      transformer.transform(source, result);
+    }
 
     return targetFile;
   }
