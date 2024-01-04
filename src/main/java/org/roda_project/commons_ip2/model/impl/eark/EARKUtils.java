@@ -62,6 +62,7 @@ import org.roda_project.commons_ip2.utils.ZIPUtils;
 import org.slf4j.Logger;
 import org.xml.sax.SAXException;
 
+/** a IP2 specialized duplication of {@link org.roda_project.commons_ip.model.impl.eark.EARKUtils}  */
 public final class EARKUtils {
   protected static boolean VALIDATION_FAIL_IF_REPRESENTATION_METS_DOES_NOT_HAVE_TWO_PARTS = false;
 

@@ -26,7 +26,7 @@ public class MetadataType implements Serializable {
       - OTHERMDTYPE="urn:iarxiu:2.0:vocabularies:cesca:Voc_document_exp"
       - OTHERMDTYPE="urn:iarxiu:2.0:vocabularies:cesca:Voc_expedient"
      */
-    OTHER_VOC_EXP("Voc_expedient"), OTHER_VOC_DOC_EXP("Voc_document_exp");
+    OTHER_VOC_EXP("Voc_expedient"), OTHER_VOC_DOC_EXP("Voc_document_exp"), OTHER_VOC_UPF("Voc_UPF");
 
     protected static final Map<String, MetadataTypeEnum> typeToEnum = new HashMap<>();
     static {
@@ -40,6 +40,7 @@ public class MetadataType implements Serializable {
 
       typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_EXPEDIENT", MetadataTypeEnum.OTHER_VOC_EXP);
       typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT_EXP", MetadataTypeEnum.OTHER_VOC_DOC_EXP);
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_UPF", MetadataTypeEnum.OTHER_VOC_UPF);
 
     }
 
