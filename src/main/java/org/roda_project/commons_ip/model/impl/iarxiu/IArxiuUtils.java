@@ -5,7 +5,6 @@
  */
 package org.roda_project.commons_ip.model.impl.iarxiu;
 
-import org.apache.commons.collections.ListUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.*;
 import org.roda_project.commons_ip.model.*;

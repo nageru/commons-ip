@@ -560,21 +560,23 @@ public final class EARKUtils {
   private static void processIArxiuMetadataExpedients(IPInterface ip, Logger logger, IPRepresentation representation,
                                                       Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
 
-    final Set<String> expIdSet = expedientXmlData.keySet();
-    for (String expId : expIdSet) {
+    final Iterator<Map.Entry<String, MdSecType.MdWrap>> expedientSet = expedientXmlData.entrySet().iterator();
+    while (expedientSet.hasNext()) {
+      final Map.Entry<String, MdSecType.MdWrap> expEntry = expedientSet.next();
+      final String expId = expEntry.getKey();
       final MdSecType.MdWrap expXmlData = expedientXmlData.get(expId);
       if (expXmlData == null) {
         LOGGER.warn("Missing iArxiu SIP '{}' {}expedient XML data for Exp metadata file '{}': {}",
                 ip.getId(), representation != null ? "representation '" + representation.getRepresentationID() + "' " : "",
                 expId, expedientXmlData);
-        expedientXmlData.remove(expId); // not attempt to process anymore
+        expedientSet.remove(); // not attempt to process anymore
       } else {
         final MetadataType.MetadataTypeEnum type = MetadataType.match(expXmlData.getMDTYPE());
         final MetadataType.MetadataTypeEnum otherType = MetadataType.match(expXmlData.getOTHERMDTYPE());
         if (type != null && type != MetadataType.MetadataTypeEnum.OTHER || otherType != null){
           // sample: ...temp.../metadata/OTHER/DOC_1.xml
           processIArxiuMetadataDocument(ip, logger, representation, expXmlData, expId, IPConstants.DESCRIPTIVE, basePath);
-          expedientXmlData.remove(expId); // processed once only
+          expedientSet.remove(); // processed once only
         }
       }
     }
