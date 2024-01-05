@@ -138,7 +138,7 @@ public final class IArxiuUtils {
           */
         if (representationMetadataFilesDiv != null) { // process the iArxiu found files metadata as documentation TODO as data? metsWrapper.setDataDiv(filesMetadataDiv);
           LOGGER.info("Setting iArxiu IP first level div label '{}' of files metadata as representations: {}", representationLabelId, representationMetadataFilesDiv);
-          metsWrapper.setRepresentationsDiv(representationMetadataFilesDiv);
+          metsWrapper.addRepresentationDiv(representationMetadataFilesDiv);
         } else {
           LOGGER.warn("IP first level div label '{}' discarded; contains no files metadata: {}", representationLabelId, firstLevel);
         }
@@ -228,11 +228,11 @@ public final class IArxiuUtils {
   public static void processRepresentations(MetsWrapper metsWrapper, IPInterface ip, Path basePath)
           throws IPException {
 
-    final DivType representationsDiv = metsWrapper.getRepresentationsDiv();
+    final List<DivType> representationDivList = metsWrapper.getRepresentationDivList();
 
-    if (representationsDiv != null) {
+    for (DivType representationDiv : representationDivList) {
 
-      final IPRepresentation representation = new IPRepresentation(representationsDiv.getLABEL());
+      final IPRepresentation representation = new IPRepresentation(representationDiv.getLABEL());
       ip.addRepresentation(representation);
 
       final List<MdSecType> documentsMetadata = new ArrayList<>();
@@ -244,19 +244,19 @@ public final class IArxiuUtils {
       /*  1 = {MdSecType@3269}
        *     mdtype = "OTHER"
        *      OTHERMDTYPE="Voc_document_exp" */
-      loadDescriptiveMetadataFiles(representationsDiv, documentsMetadata, documentXmlData);
+      loadDescriptiveMetadataFiles(representationDiv, documentsMetadata, documentXmlData);
 
       EARKUtils.processIArxiuRepresentationDocuments(ip, LOGGER, metsWrapper, representation, documentsMetadata,
               documentXmlData, basePath);
 
       // as IPRepresentation.List<IPFile> data
-      final List<DivType.Fptr> filePointers = getFilePointersList(representationsDiv);
+      final List<DivType.Fptr> filePointers = getFilePointersList(representationDiv);
       processRepresentationDataFiles(metsWrapper, ip, filePointers, representation, basePath);
     }
 
     if (ip.getRepresentations().isEmpty()) {       // post-process validations
       ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.MAIN_METS_NO_REPRESENTATIONS_FOUND,
-              ValidationEntry.LEVEL.WARN, representationsDiv, ip.getBasePath(), metsWrapper.getMetsPath());
+              ValidationEntry.LEVEL.WARN, (DivType) null, ip.getBasePath(), metsWrapper.getMetsPath());
     }
   }
 

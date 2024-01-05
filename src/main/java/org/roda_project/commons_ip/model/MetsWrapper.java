@@ -8,6 +8,8 @@
 package org.roda_project.commons_ip.model;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.roda_project.commons_ip.mets_v1_11.beans.DivType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileGrpType;
@@ -25,6 +27,9 @@ public class MetsWrapper {
   private DivType preservationMetadataDiv;
   private DivType otherMetadataDiv;
   private DivType representationsDiv;
+
+  private List<DivType> representations = new ArrayList<>();
+
   private DivType dataDiv;
   private DivType schemasDiv;
   private DivType submissionsDiv;
@@ -95,12 +100,28 @@ public class MetsWrapper {
     this.otherMetadataDiv = otherMetadataDiv;
   }
 
+  /** {@link #setRepresentationsDiv(DivType)}
+   * @return */
   public DivType getRepresentationsDiv() {
     return representationsDiv;
   }
 
+  /** A representation<b>s</> DivType containing one or more representation div
+   * @param representationsDiv */
   public void setRepresentationsDiv(DivType representationsDiv) {
     this.representationsDiv = representationsDiv;
+  }
+
+  /** list {@link #addRepresentationDiv(DivType)}
+   * @return */
+  public List<DivType> getRepresentationDivList() {
+    return representations;
+  }
+
+  /** A unique representation Div
+   * @param representation */
+  public void addRepresentationDiv(DivType representation) {
+    this.representations.add(representation);
   }
 
   public FileGrpType getRepresentationsFileGroup() {
