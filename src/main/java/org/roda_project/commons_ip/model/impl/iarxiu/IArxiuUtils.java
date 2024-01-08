@@ -9,15 +9,20 @@ import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.*;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.model.MetadataType.MetadataTypeEnum;
-import org.roda_project.commons_ip.model.impl.eark.EARKUtils;
+import org.roda_project.commons_ip.model.impl.CommonSipUtils;
 import org.roda_project.commons_ip.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
 import javax.xml.bind.JAXBException;
+import javax.xml.transform.TransformerException;
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -121,52 +126,15 @@ public final class IArxiuUtils {
       metsWrapper.setMainDiv(aipDiv); //  descriptive metadata: aipDiv -> dmdid -> List {MdSecType@3284}
 
       for (DivType firstLevel : aipDiv.getDiv()) {
-        final String representationLabelId = getLabel(firstLevel); // iArxiu LABEL="index.xml"
+        final String representationLabelId = getLabel(firstLevel); // iArxiu LABEL ="[FILE].xml"
         final DivType representationMetadataFilesDiv = findFilesMetadataDiv(firstLevel);
-        /* firstLevel LABEL="index.xml" -> fptr FILEID="BIN_1_GRP"
 
-              fptr = {ArrayList@3416}  size = 1
-               0 = {DivType$Fptr@3419}
-
-             -> fileSec fileGrp ID="BIN_1_GRP"
-                  fileid = {MetsType$FileSec$FileGrp@3420}
-                    file = {ArrayList@3422}  size = 1
-                     0 = {FileType@3426}
-                       fLocat = {ArrayList@3427}  size = 1
-                            0 = {FileType$FLocat@3438}
-                            href = "BIN_1/index.xml"
-          */
-        if (representationMetadataFilesDiv != null) { // process the iArxiu found files metadata as documentation TODO as data? metsWrapper.setDataDiv(filesMetadataDiv);
+        if (representationMetadataFilesDiv != null) { // process the found files metadata each as a representation
           LOGGER.info("Setting iArxiu IP first level div label '{}' of files metadata as representations: {}", representationLabelId, representationMetadataFilesDiv);
           metsWrapper.addRepresentationDiv(representationMetadataFilesDiv);
         } else {
           LOGGER.warn("IP first level div label '{}' discarded; contains no files metadata: {}", representationLabelId, firstLevel);
         }
-
-        final List<Object> dmdIdDocMetadataList =
-        /* namespaceURI = "http://schemas.user.iarxiu.hp.com/2.0/Voc_document_exp"
-            dmdid = {ArrayList@3243}  size = 2
-                any = {ArrayList@3257}  size = 1
-                  name = "voc:document"
-               xmlData = {MdSecType$MdWrap$XmlData@3253}
-                 0 = {ElementNSImpl@3259} "[voc:document: null]"
-              id = "DOC_1"
-                   nodes = {ArrayList@3269}  size = 2
-                    0 = {AttrNSImpl@3272} "xmlns:mets="http://www.loc.gov/METS/""
-                    1 = {AttrNSImpl@3273} "xmlns:voc="http://schemas.user.iarxiu.hp.com/2.0/Voc_document_exp""
-               othermdtype = "urn:iarxiu:2.0:vocabularies:cesca:Voc_document_exp"
-               mdtype = "OTHER"
-               mimetype = "text/xml"
-             1 = {MdSecType@3246}
-              id = "DOC_1_DC"
-               mdtype = "DC"
-               mimetype = "text/xml"
-                any = {ArrayList@3280}  size = 1
-                  namespaceURI = "http://www.openarchives.org/OAI/2.0/oai_dc/"
-                  name = "oai:dc"
-               xmlData = {MdSecType$MdWrap$XmlData@3277}
-         */
-                firstLevel.getDMDID();
       }
     }
   }
@@ -186,7 +154,7 @@ public final class IArxiuUtils {
       return fdiv;
     }
 
-    if (fdiv.getDiv() != null) { // find only when matching the parent label TODO relax to allow file group nested div with different label?
+    if (fdiv.getDiv() != null) { // find only when matching the parent label (it can be relaxed to allow file group nested div with different label)
       final List<DivType> relevant2ndLevels = fdiv.getDiv().stream()
               .filter(div -> div != null && isNotBlank(div.getLABEL()) && (labelId ==  null || div.getLABEL().equalsIgnoreCase(labelId))).collect(Collectors.toList());
 
@@ -201,7 +169,15 @@ public final class IArxiuUtils {
     return null;
   }
 
-  public static void processDescriptiveMetadata(MetsWrapper metsWrapper, IPInterface ip, Path basePath) throws IPException {
+  /** Process the main METS descriptive metadata {@link #loadDescriptiveMetadataFiles(DivType, List, Map)} as
+   * - documents {@link #processMetadataDocument(IPInterface, Logger, IPRepresentation, MdSecType.MdWrap, String, String, Path)}
+   * - expedients  {@link #processMetadataExpedients(IPInterface, Logger, IPRepresentation, Map, Path)}
+   * - and also supports the not known other expedients types: {@link #processOtherDocuments(IPInterface, Logger, IPRepresentation, Map, Path)}
+   * @param metsWrapper
+   * @param ip
+   * @param basePath
+   * @throws IPException */
+  protected static void processDescriptiveMetadata(MetsWrapper metsWrapper, IPInterface ip, Path basePath) throws IPException {
     final DivType mainDiv = metsWrapper.getMainDiv();
     if (mainDiv != null) {
       /*  Expedient
@@ -220,12 +196,127 @@ public final class IArxiuUtils {
        *      OTHERMDTYPE="Voc_document_exp" */
       loadDescriptiveMetadataFiles(mainDiv, documentsMetadata, documentXmlData);
 
-      EARKUtils.processIArxiuDocuments(ip, LOGGER, metsWrapper, documentsMetadata, documentXmlData, basePath);
+      processMetadataDocuments(ip, LOGGER, metsWrapper, null, documentsMetadata, basePath);
+      processMetadataExpedients(ip, LOGGER, null, documentXmlData, basePath);
+      processOtherDocuments(ip, LOGGER, null, documentXmlData, basePath);
 
     } // already validation error on pre-processing: ValidationReport MAIN_METS_HAS_NO_E_ARK_STRUCT_MAP
   }
 
-  public static void processRepresentations(MetsWrapper metsWrapper, IPInterface ip, Path basePath)
+  /** The Descriptive {@link IPConstants#DESCRIPTIVE} metadata {@link IPConstants#METADATA} to process  {@link CommonSipUtils#processMetadata(IPInterface, Logger, IPRepresentation, MdSecType.MdRef, String, Path)}
+   * @param ip
+   * @param logger
+   * @param metsWrapper
+   * @param representation if a representation or 'null' a main METS
+   * @param metadataSecList
+   * @param basePath
+   * @throws IPException */
+  private static void processMetadataDocuments(IPInterface ip, Logger logger, MetsWrapper metsWrapper, IPRepresentation representation,
+                                               List<MdSecType> metadataSecList, Path basePath) throws IPException {
+
+    final String metadataType = IPConstants.DESCRIPTIVE;
+    if (metadataSecList != null) {
+      for (MdSecType metadataSec : metadataSecList) {
+
+        final String id = metadataSec.getID();
+        final MdSecType.MdWrap mdXmlData = metadataSec.getMdWrap();
+        // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
+        final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
+        final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath);
+
+        // sample, DOC_1_DC is Voc_document_exp: DOC_1
+        CommonSipUtils.processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
+      }
+    } else {
+      ValidationUtils.addIssue(ip.getValidationReport(),
+              ValidationConstants.getMetadataFileNotFoundString(metadataType), ValidationEntry.LEVEL.ERROR,
+              ip.getBasePath(), metsWrapper.getMetsPath());
+    }
+  }
+
+  /** The MD {@link MetadataTypeEnum#OTHER} type of the expedients {@link #processMetadataDocument(IPInterface, Logger, IPRepresentation, MdSecType.MdWrap, String, String, Path)}
+   *  as {@link IPConstants#DESCRIPTIVE} metadata
+   * @param ip
+   * @param logger
+   * @param representation if a representation or if 'null' a main METS
+   * @param expedientXmlData
+   * @param basePath
+   * @throws IPException */
+  private static void processMetadataExpedients(IPInterface ip, Logger logger, IPRepresentation representation,
+                                                Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
+
+    final Iterator<Map.Entry<String, MdSecType.MdWrap>> expedientSet = expedientXmlData.entrySet().iterator();
+    while (expedientSet.hasNext()) {
+      final Map.Entry<String, MdSecType.MdWrap> expEntry = expedientSet.next();
+      final String expId = expEntry.getKey();
+      final MdSecType.MdWrap expXmlData = expedientXmlData.get(expId);
+      if (expXmlData == null) {
+        LOGGER.warn("Missing iArxiu SIP '{}' {}expedient XML data for Exp metadata file '{}': {}",
+                ip.getId(), representation != null ? "representation '" + representation.getRepresentationID() + "' " : "",
+                expId, expedientXmlData);
+        expedientSet.remove(); // not attempt to process anymore
+      } else {
+        final MetadataType.MetadataTypeEnum type = MetadataType.match(expXmlData.getMDTYPE());
+        final MetadataType.MetadataTypeEnum otherType = MetadataType.match(expXmlData.getOTHERMDTYPE());
+        if (type != null && type != MetadataType.MetadataTypeEnum.OTHER || otherType != null){
+          // sample: ...temp.../metadata/OTHER/DOC_1.xml
+          processMetadataDocument(ip, logger, representation, expXmlData, expId, IPConstants.DESCRIPTIVE, basePath);
+          expedientSet.remove(); // processed once only
+        }
+      }
+    }
+  }
+
+  /** Process as the MD type metadata {@link #processMetadataDocument(IPInterface, Logger, IPRepresentation, MdSecType.MdWrap, String, String, Path)}
+   * @param ip
+   * @param logger
+   * @param representation
+   * @param documentsXmlData the Document ID and the XML with the MD type {@link MdSecType.MdWrap#getMDTYPE()}
+   * @param basePath
+   * @throws IPException */
+  private static void processOtherDocuments(IPInterface ip, Logger logger, IPRepresentation representation,
+                                            Map<String, MdSecType.MdWrap> documentsXmlData, Path basePath) throws IPException {
+
+    final Set<String> docIdSet = documentsXmlData.keySet();
+    for (String docId : docIdSet) {
+      final MdSecType.MdWrap expXmlData = documentsXmlData.get(docId);
+      final String expMdType = expXmlData.getMDTYPE(); // OTHER
+      // .../metadata/OTHER/....xml
+      processMetadataDocument(ip, logger, representation, expXmlData, docId, expMdType, basePath);
+      documentsXmlData.remove(docId); // processed once only
+    }
+  }
+
+  /** the given type of metadata type as metadata {@link IPConstants#METADATA} to process {@link CommonSipUtils#processMetadata(IPInterface, Logger, IPRepresentation, MdSecType.MdRef, String, Path)}
+   * @param ip
+   * @param logger
+   * @param representation
+   * @param mdXmlData the XML data to extract {@link #xmlToFileHref(String, Path, MdSecType.MdWrap, String)}
+   * @param id
+   * @param metadataType the type of the metadata
+   * @param basePath
+   * @throws IPException */
+  private static void processMetadataDocument(IPInterface ip, Logger logger, IPRepresentation representation, MdSecType.MdWrap mdXmlData,
+                                              String id, String metadataType, Path basePath) throws IPException {
+
+    // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
+    final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
+    final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath);
+
+    // sample, DOC_1_DC is Voc_document_exp: DOC_1
+    CommonSipUtils.processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
+  }
+
+  /** creates a new representation with its...
+   * - documents {@link #processMetadataDocument(IPInterface, Logger, IPRepresentation, MdSecType.MdWrap, String, String, Path)}
+   * - expedients  {@link #processMetadataExpedients(IPInterface, Logger, IPRepresentation, Map, Path)}
+   * - and also supports the not known other expedients types: {@link #processOtherDocuments(IPInterface, Logger, IPRepresentation, Map, Path)}
+   * - {@link #processRepresentationDataFiles(MetsWrapper, IPInterface, List, IPRepresentation, Path)}
+   * @param metsWrapper each {@link MetsWrapper#getRepresentationDivList()}
+   * @param ip
+   * @param basePath
+   * @throws IPException */
+  protected static void processRepresentations(MetsWrapper metsWrapper, IPInterface ip, Path basePath)
           throws IPException {
 
     final List<DivType> representationDivList = metsWrapper.getRepresentationDivList();
@@ -246,8 +337,9 @@ public final class IArxiuUtils {
        *      OTHERMDTYPE="Voc_document_exp" */
       loadDescriptiveMetadataFiles(representationDiv, documentsMetadata, documentXmlData);
 
-      EARKUtils.processIArxiuRepresentationDocuments(ip, LOGGER, metsWrapper, representation, documentsMetadata,
-              documentXmlData, basePath);
+      processMetadataDocuments(ip, LOGGER, metsWrapper, representation, documentsMetadata, basePath);
+      processMetadataExpedients(ip, LOGGER, representation, documentXmlData, basePath);
+      processOtherDocuments(ip, LOGGER, representation, documentXmlData, basePath);
 
       // as IPRepresentation.List<IPFile> data
       final List<DivType.Fptr> filePointers = getFilePointersList(representationDiv);
@@ -260,6 +352,10 @@ public final class IArxiuUtils {
     }
   }
 
+  /** prepares the documents and expedients
+   * @param div the struct map preprocessed div type (for a main METS or each Representation)
+   * @param metadataList documents {@link MetadataTypeEnum#DC}
+   * @param xmlDataMap expedients {@link MetadataTypeEnum#OTHER} (includes the OTHER MD TYPEs for the iArxiu expedients, like: {@link MetadataTypeEnum#OTHER_VOC_DOC_EXP}, {@link MetadataTypeEnum#OTHER_VOC_EXP} or {@link MetadataTypeEnum#OTHER_VOC_UPF}) */
   private static void loadDescriptiveMetadataFiles(DivType div, List<MdSecType> metadataList, Map<String, MdSecType.MdWrap> xmlDataMap) {
 
     final List<MdSecType> metadataTypes = findMainDescriptiveMetadataFiles(div);
@@ -278,6 +374,12 @@ public final class IArxiuUtils {
     }
   }
 
+  /** the binary 'data' files in a representation
+   * @param metsWrapper
+   * @param ip
+   * @param filePointers the data files
+   * @param representation
+   * @param representationBasePath */
   protected static void processRepresentationDataFiles(MetsWrapper metsWrapper, IPInterface ip, List<DivType.Fptr> filePointers,
                                                        IPRepresentation representation, Path representationBasePath) {
     for (DivType.Fptr fptr : filePointers) {
@@ -289,10 +391,10 @@ public final class IArxiuUtils {
           String href = Utils.extractedRelativePathFromHref(fLocat.getHref());
           Path filePath = representationBasePath.resolve(href);
           if (Files.exists(filePath)) {
-            List<String> fileRelativeFolders = Utils
+            final List<String> fileRelativeFolders = Utils
                     .getFileRelativeFolders(representationBasePath // not as eARK; not using 'data' folder .resolve(IPConstants.DATA)
                             , filePath);
-            Optional<IPFile> file = validateFileType(ip, filePath, fileType, fileRelativeFolders);
+            final Optional<IPFile> file = validateFileType(ip, filePath, fileType, fileRelativeFolders);
 
             if (file.isPresent()) {
               representation.addFile(file.get());
@@ -315,6 +417,52 @@ public final class IArxiuUtils {
               ValidationEntry.LEVEL.WARN, metsWrapper.getDataDiv(), ip.getBasePath(),
               metsWrapper.getMetsPath());
     }
+  }
+
+  /** does the extraction of the inner XML data to a href link file {@link MdSecType.MdWrap#getXmlData()}
+   * @param id
+   * @param basePath
+   * @param mdWrap the XML data
+   * @param metadataPath
+   * @return the md type ref to a newly created file */
+  private static MdSecType.MdRef xmlToFileHref(String id, Path basePath, MdSecType.MdWrap mdWrap, String metadataPath) {
+
+    final String mimetype = mdWrap.getMIMETYPE();
+
+    String mimeTypeFileExtension = ".xml";
+    if (StringUtils.isNotBlank(mimetype)) {
+      final String[] mimeParts = mimetype.split("/");
+      final String mimeTypeSuffix = mimeParts[mimeParts.length - 1];
+      if (StringUtils.isNotBlank(mimeTypeSuffix) && mimeTypeSuffix.trim().length() > 2) {
+        mimeTypeFileExtension = "." + mimeTypeSuffix.trim().toLowerCase();
+      }
+    }
+    String fileName = id;
+    if (!fileName.trim().toLowerCase().endsWith(mimeTypeFileExtension)) {
+      fileName += mimeTypeFileExtension;
+    }
+
+    Long size = null;
+    final Path metadataFilePath = basePath.resolve(metadataPath).resolve(fileName);
+
+    final Element xmlData = mdWrap.getXmlData().getAny().stream().filter(o -> o instanceof Element).map(e -> (Element) e).findFirst().orElse(null);
+    if (xmlData == null) {
+      LOGGER.warn("No document found under xml data id '{}' ({}) for href file '{}'",
+              mdWrap.getID(), mdWrap, metadataPath);
+    } else {
+      try {
+        final File metadataFile = METSUtils.marshallXmlToFile(xmlData, metadataFilePath);
+        size = metadataFile.length();
+      } catch (IOException | TransformerException e) {
+        LOGGER.error("Failed to convert '{}' xml data id '{}' ({}) to metadata href file '{}': {}",
+                metadataPath, mdWrap.getID(), mdWrap, metadataFilePath, e);
+      } // returns the mdRef anyway for later validation error
+    }
+
+    final MdSecType.MdRef mdRef = METSUtils.createMdRef(id,
+            metadataFilePath.toString(), mdWrap.getMDTYPE(), mimetype, mdWrap.getCREATED(),
+            size, mdWrap.getOTHERMDTYPE(), mdWrap.getMDTYPEVERSION());
+    return mdRef;
   }
 
   private static String getLabel(DivType div){

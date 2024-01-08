@@ -244,27 +244,30 @@ public final class EARKMETSUtils {
     return agent;
   }
 
-  public static MdRef addDescriptiveMetadataToMETS(MetsWrapper metsWrapper, IPDescriptiveMetadata descriptiveMetadata,
-    String descriptiveMetadataPath) throws IPException, InterruptedException {
+  public static MdRef addDescriptiveMetadataToMETS(MetsWrapper metsWrapper, IPDescriptiveMetadata descriptiveMetadata, String descriptiveMetadataPath) {
     return addMetadataToMETS(metsWrapper, descriptiveMetadata, descriptiveMetadataPath,
       descriptiveMetadata.getMetadataType().getType().getType(), descriptiveMetadata.getMetadataType().getOtherType(),
       descriptiveMetadata.getMetadataVersion(), true);
   }
 
-  public static MdRef addOtherMetadataToMETS(MetsWrapper metsWrapper, IPMetadata otherMetadata,
-    String otherMetadataPath) throws IPException, InterruptedException {
+  public static MdRef addOtherMetadataToMETS(MetsWrapper metsWrapper, IPMetadata otherMetadata, String otherMetadataPath)  {
     return addMetadataToMETS(metsWrapper, otherMetadata, otherMetadataPath, "OTHER", null, null, false);
   }
 
   private static MdRef addMetadataToMETS(MetsWrapper metsWrapper, IPMetadata metadata, String metadataPath,
-    String mdType, String mdOtherType, String mdTypeVersion, boolean isDescriptive)
-    throws IPException, InterruptedException {
+    String mdType, String mdOtherType, String mdTypeVersion, boolean isDescriptive) {
     MdSecType dmdSec = new MdSecType();
     dmdSec.setID(Utils.generateRandomAndPrefixedUUID());
 
     final MdRef mdRef = createMdRef(metadata.getId(), metadataPath);
     mdRef.setMDTYPEVERSION(mdTypeVersion);
     mdRef.setType(IPConstants.METS_TYPE_SIMPLE);
+
+    mdRef.setMDTYPE(mdType);
+    if (StringUtils.isNotBlank(mdOtherType)) {
+      mdRef.setOTHERMDTYPE(mdOtherType);
+    }
+
     // also set date created in dmdSec elem
     dmdSec.setCREATED(mdRef.getCREATED());
 

@@ -8,11 +8,14 @@
 package org.roda_project.commons_ip.model.impl.eark;
 
 import org.apache.commons.lang3.StringUtils;
-import org.roda_project.commons_ip.mets_v1_11.beans.*;
+import org.roda_project.commons_ip.mets_v1_11.beans.DivType;
 import org.roda_project.commons_ip.mets_v1_11.beans.DivType.Fptr;
 import org.roda_project.commons_ip.mets_v1_11.beans.DivType.Mptr;
+import org.roda_project.commons_ip.mets_v1_11.beans.FileType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType.FLocat;
 import org.roda_project.commons_ip.mets_v1_11.beans.MdSecType.MdRef;
+import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
+import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
 import org.roda_project.commons_ip.model.*;
 import org.roda_project.commons_ip.model.impl.CommonSipUtils;
 import org.roda_project.commons_ip.model.impl.ModelUtils;
@@ -20,16 +23,16 @@ import org.roda_project.commons_ip.utils.*;
 import org.roda_project.commons_ip.utils.IPEnums.IPStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 
 import javax.xml.bind.JAXBException;
-import javax.xml.transform.TransformerException;
-import java.io.*;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.roda_project.commons_ip.model.impl.CommonSipUtils.validateFileType;
@@ -509,7 +512,7 @@ public final class EARKUtils {
     if (div != null && div.getFptr() != null) {
       for (Fptr fptr : div.getFptr()) {
         final MdRef metadataFile = (MdRef) fptr.getFILEID();
-        processMetadata(ip, logger, representation, metadataFile, metadataType, basePath);
+        CommonSipUtils.processMetadata(ip, logger, representation, metadataFile, metadataType, basePath);
       }
     } else {
       ValidationUtils.addIssue(ip.getValidationReport(),
@@ -520,214 +523,54 @@ public final class EARKUtils {
     return ip;
   }
 
-  public static void processIArxiuDocuments(IPInterface ip, Logger logger, MetsWrapper mainMetsWrapper,
-                                            List<MdSecType> metadataSecList, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
-    processIArxiuMetadataDocuments(ip, logger, mainMetsWrapper, null, metadataSecList, basePath);
-    processIArxiuMetadataExpedients(ip, logger, null, expedientXmlData, basePath);
-    processIArxiuOtherDocuments(ip, logger, null, expedientXmlData, basePath);
-  }
-
-  public static void processIArxiuRepresentationDocuments(IPInterface ip, Logger logger, MetsWrapper representationMetsWrapper,
-                                                          IPRepresentation representation, List<MdSecType> metadataSecList, Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
-    processIArxiuMetadataDocuments(ip, logger, representationMetsWrapper, representation, metadataSecList, basePath);
-    processIArxiuMetadataExpedients(ip, logger, representation, expedientXmlData, basePath);
-    processIArxiuOtherDocuments(ip, logger, representation, expedientXmlData, basePath);
-  }
-
-  private static void processIArxiuMetadataDocuments(IPInterface ip, Logger logger, MetsWrapper metsWrapper, IPRepresentation representation,
-                                                        List<MdSecType> metadataSecList, Path basePath) throws IPException {
-
-    final String metadataType = IPConstants.DESCRIPTIVE;
-    if (metadataSecList != null) {
-      for (MdSecType metadataSec : metadataSecList) {
-
-        final String id = metadataSec.getID();
-        final MdSecType.MdWrap mdXmlData = metadataSec.getMdWrap();
-        // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
-        final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
-        final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath);
-
-        // sample, DOC_1_DC is Voc_document_exp: DOC_1
-        processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
-      }
-    } else {
-      ValidationUtils.addIssue(ip.getValidationReport(),
-              ValidationConstants.getMetadataFileNotFoundString(metadataType), ValidationEntry.LEVEL.ERROR,
-              ip.getBasePath(), metsWrapper.getMetsPath());
-    }
-  }
-
-  private static void processIArxiuMetadataExpedients(IPInterface ip, Logger logger, IPRepresentation representation,
-                                                      Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
-
-    final Iterator<Map.Entry<String, MdSecType.MdWrap>> expedientSet = expedientXmlData.entrySet().iterator();
-    while (expedientSet.hasNext()) {
-      final Map.Entry<String, MdSecType.MdWrap> expEntry = expedientSet.next();
-      final String expId = expEntry.getKey();
-      final MdSecType.MdWrap expXmlData = expedientXmlData.get(expId);
-      if (expXmlData == null) {
-        LOGGER.warn("Missing iArxiu SIP '{}' {}expedient XML data for Exp metadata file '{}': {}",
-                ip.getId(), representation != null ? "representation '" + representation.getRepresentationID() + "' " : "",
-                expId, expedientXmlData);
-        expedientSet.remove(); // not attempt to process anymore
-      } else {
-        final MetadataType.MetadataTypeEnum type = MetadataType.match(expXmlData.getMDTYPE());
-        final MetadataType.MetadataTypeEnum otherType = MetadataType.match(expXmlData.getOTHERMDTYPE());
-        if (type != null && type != MetadataType.MetadataTypeEnum.OTHER || otherType != null){
-          // sample: ...temp.../metadata/OTHER/DOC_1.xml
-          processIArxiuMetadataDocument(ip, logger, representation, expXmlData, expId, IPConstants.DESCRIPTIVE, basePath);
-          expedientSet.remove(); // processed once only
-        }
-      }
-    }
-  }
-
-  private static void processIArxiuOtherDocuments(IPInterface ip, Logger logger, IPRepresentation representation,
-                                                  Map<String, MdSecType.MdWrap> documentsXmlData, Path basePath) throws IPException {
-
-    final Set<String> docIdSet = documentsXmlData.keySet();
-    for (String docId : docIdSet) {
-      final MdSecType.MdWrap expXmlData = documentsXmlData.get(docId);
-      final String expMdType = expXmlData.getMDTYPE(); // OTHER
-      // .../metadata/OTHER/....xml
-      processIArxiuMetadataDocument(ip, logger, representation, expXmlData, docId, expMdType, basePath);
-      documentsXmlData.remove(docId); // processed once only
-    }
-  }
-
-  private static void processIArxiuMetadataDocument(IPInterface ip, Logger logger, IPRepresentation representation, MdSecType.MdWrap mdXmlData,
-                                                    String id, String metadataType, Path basePath) throws IPException {
-
-    // sample: ...temp.../metadata/descriptive/DOC_1_DC.xml
-    final String descriptiveMetadataPath = Paths.get(IPConstants.METADATA, metadataType).toString();
-    final MdSecType.MdRef mdRef = xmlToFileHref(id, basePath, mdXmlData, descriptiveMetadataPath);
-
-    // sample, DOC_1_DC is Voc_document_exp: DOC_1
-    processMetadata(ip, logger, representation, mdRef, metadataType, basePath);
-  }
-
-  private static MdRef xmlToFileHref(String id, Path basePath, MdSecType.MdWrap mdWrap, String metadataPath) {
-
-    final String mimetype = mdWrap.getMIMETYPE();
-
-    String mimeTypeFileExtension = ".xml";
-    if (StringUtils.isNotBlank(mimetype)) {
-      final String[] mimeParts = mimetype.split("/");
-      final String mimeTypeSuffix = mimeParts[mimeParts.length - 1];
-      if (StringUtils.isNotBlank(mimeTypeSuffix) && mimeTypeSuffix.trim().length() > 2) {
-        mimeTypeFileExtension = "." + mimeTypeSuffix.trim().toLowerCase();
-      }
-    }
-    String fileName = id;
-    if (!fileName.trim().toLowerCase().endsWith(mimeTypeFileExtension)) {
-      fileName += mimeTypeFileExtension;
-    }
-
-    Long size = null;
-    final Path metadataFilePath = basePath.resolve(metadataPath).resolve(fileName);
-
-    final Element xmlData = mdWrap.getXmlData().getAny().stream().filter(o -> o instanceof Element).map(e -> (Element) e).findFirst().orElse(null);
-    if (xmlData == null) {
-      LOGGER.warn("No document found under xml data id '{}' ({}) for href file '{}'",
-              mdWrap.getID(), mdWrap, metadataPath);
-    } else {
-      try {
-        final File metadataFile = METSUtils.marshallXmlToFile(xmlData, metadataFilePath);
-        size = metadataFile.length();
-      } catch (IOException | TransformerException e) {
-        LOGGER.error("Failed to convert '{}' xml data id '{}' ({}) to metadata href file '{}': {}",
-                metadataPath, mdWrap.getID(), mdWrap, metadataFilePath, e);
-      } // returns the mdRef anyway for later validation error
-    }
-
-    final MdRef mdRef = METSUtils.createMdRef(id,
-            metadataFilePath.toString(), mdWrap.getMDTYPE(), mimetype, mdWrap.getCREATED(),
-            size, mdWrap.getOTHERMDTYPE(), mdWrap.getMDTYPEVERSION());
-    return mdRef;
-  }
-
-  protected static void processMetadata(IPInterface ip, Logger logger,
-                                        IPRepresentation representation, MdRef metadataFile, String metadataType, Path basePath) throws IPException {
-
-    final String href = Utils.extractedRelativePathFromHref(metadataFile);
-    final Path filePath = basePath.resolve(href);
-    if (Files.exists(filePath)) {
-      final List<String> fileRelativeFolders = Utils.getFileRelativeFolders(basePath.resolve(IPConstants.METADATA).resolve(metadataType), filePath);
-      processMetadataFile(ip, logger, representation, metadataType, metadataFile, filePath, fileRelativeFolders);
-    } else {
-      ValidationUtils.addIssue(ip.getValidationReport(),
-              ValidationConstants.getMetadataFileNotFoundString(metadataType), ValidationEntry.LEVEL.ERROR,
-              ip.getBasePath(), filePath);
-    }
-  }
-
-  protected static void processMetadataFile(IPInterface ip, Logger logger, IPRepresentation representation,
-    String metadataType, MdRef mdRef, Path filePath, List<String> fileRelativeFolders) throws IPException {
-    final Optional<IPFile> metadataFile = validateMetadataFile(ip, filePath, mdRef, fileRelativeFolders);
-    if (metadataFile.isPresent()) {
-      ValidationUtils.addInfo(ip.getValidationReport(),
-        ValidationConstants.getMetadataFileFoundWithMatchingChecksumString(metadataType), ip.getBasePath(), filePath);
-
-      if (IPConstants.DESCRIPTIVE.equalsIgnoreCase(metadataType)) {
-        final MetadataType dmdType = new MetadataType(mdRef.getMDTYPE().toUpperCase());
-        String dmdVersion = null;
-        try {
-          dmdVersion = mdRef.getMDTYPEVERSION();
-          if (isNotBlank(mdRef.getOTHERMDTYPE())) {
-            dmdType.setOtherType(mdRef.getOTHERMDTYPE());
-          }
-          logger.debug("Metadata type valid: {}", dmdType);
-        } catch (NullPointerException | IllegalArgumentException e) {
-          // do nothing and use already defined values for metadataType &
-          // metadataVersion
-          logger.debug("Setting metadata type to {}", dmdType);
-          ValidationUtils.addEntry(ip.getValidationReport(), ValidationConstants.UNKNOWN_DESCRIPTIVE_METADATA_TYPE,
-            ValidationEntry.LEVEL.WARN, "Setting metadata type to " + dmdType, ip.getBasePath(), filePath);
-        }
-
-        IPDescriptiveMetadata descriptiveMetadata = new IPDescriptiveMetadata(mdRef.getID(), metadataFile.get(),
-          dmdType, dmdVersion);
-        descriptiveMetadata.setCreateDate(mdRef.getCREATED());
-        if (representation == null) {
-          ip.addDescriptiveMetadata(descriptiveMetadata);
-        } else {
-          representation.addDescriptiveMetadata(descriptiveMetadata);
-        }
-      } else if (IPConstants.PRESERVATION.equalsIgnoreCase(metadataType)) {
-        IPMetadata preservationMetadata = new IPMetadata(metadataFile.get());
-        preservationMetadata.setCreateDate(mdRef.getCREATED());
-        if (representation == null) {
-          ip.addPreservationMetadata(preservationMetadata);
-        } else {
-          representation.addPreservationMetadata(preservationMetadata);
-        }
-      } else if (IPConstants.OTHER.equalsIgnoreCase(metadataType)) {
-        IPMetadata otherMetadata = new IPMetadata(metadataFile.get());
-        otherMetadata.setCreateDate(mdRef.getCREATED());
-        if (representation == null) {
-          ip.addOtherMetadata(otherMetadata);
-        } else {
-          representation.addOtherMetadata(otherMetadata);
-        }
-      }
-    }
-  }
-
-
-  protected static Optional<IPFile> validateMetadataFile(IPInterface ip, Path filePath, MdRef mdRef,
-    List<String> fileRelativeFolders) {
-    return Utils.validateFile(ip, filePath, fileRelativeFolders, mdRef.getCHECKSUM(), mdRef.getCHECKSUMTYPE(),
-      mdRef.getID());
-  }
-
   protected static IPInterface processFile(IPInterface ip, DivType div, String folder, Path basePath) {
     if (div != null && div.getFptr() != null) {
       for (Fptr fptr : div.getFptr()) {
         FileType fileType = (FileType) fptr.getFILEID();
-          CommonSipUtils.processFileType(ip, div, fileType, folder, basePath);
+          processFileType(ip, div, fileType, folder, basePath);
         }
       }
     return ip;
+  }
+
+  private static void processFileType(IPInterface ip, DivType container, FileType fileType, String folder, Path basePath) {
+    if (fileType == null || fileType.getFLocat() != null) {
+      FileType.FLocat fLocat = fileType.getFLocat().get(0);
+      String href = Utils.extractedRelativePathFromHref(fLocat.getHref());
+      Path filePath = basePath.resolve(href);
+
+      if (Files.exists(filePath)) {
+        List<String> fileRelativeFolders = Utils.getFileRelativeFolders(basePath.resolve(folder), filePath);
+        Optional<IPFile> file = validateFileType(ip, filePath, fileType, fileRelativeFolders);
+
+        if (file.isPresent()) {
+          if (IPConstants.SCHEMAS.equalsIgnoreCase(folder)) {
+            ValidationUtils.addInfo(ip.getValidationReport(),
+                    ValidationConstants.SCHEMA_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
+            ip.addSchema(file.get());
+          } else if (IPConstants.DOCUMENTATION.equalsIgnoreCase(folder)) {
+            ValidationUtils.addInfo(ip.getValidationReport(),
+                    ValidationConstants.DOCUMENTATION_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
+            ip.addDocumentation(file.get());
+          } else if (IPConstants.SUBMISSION.equalsIgnoreCase(folder) && ip instanceof AIP) {
+            ValidationUtils.addInfo(ip.getValidationReport(),
+                    ValidationConstants.SUBMISSION_FILE_FOUND_WITH_MATCHING_CHECKSUMS, ip.getBasePath(), filePath);
+            ((AIP) ip).addSubmission(file.get());
+          }
+        }
+      } else {
+        if (IPConstants.SCHEMAS.equalsIgnoreCase(folder)) {
+          ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.SCHEMA_FILE_NOT_FOUND,
+                  ValidationEntry.LEVEL.ERROR, container, ip.getBasePath(), filePath);
+        } else if (IPConstants.DOCUMENTATION.equalsIgnoreCase(folder)) {
+          ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.DOCUMENTATION_FILE_NOT_FOUND,
+                  ValidationEntry.LEVEL.ERROR, container, ip.getBasePath(), filePath);
+        } else if (IPConstants.SUBMISSION.equalsIgnoreCase(folder)) {
+          ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.SUBMISSION_FILE_NOT_FOUND,
+                  ValidationEntry.LEVEL.ERROR, container, ip.getBasePath(), filePath);
+        }
+      }
+    }
   }
 
   protected static void processRepresentationAgents(MetsWrapper representationMetsWrapper,

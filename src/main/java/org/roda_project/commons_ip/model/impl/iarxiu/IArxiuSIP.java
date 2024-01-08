@@ -82,6 +82,15 @@ public class IArxiuSIP extends SIP {
     }
   }
 
+  /** the iArxiu main METS descriptive metadata and representations
+   * - {@link IArxiuUtils#processDescriptiveMetadata(MetsWrapper, IPInterface, Path)}
+   * - {@link IArxiuUtils#processRepresentations(MetsWrapper, IPInterface, Path)}
+   * all of them, main METS and each representation with its documents metadata and expedients
+   * the representations contains the binary data files
+   * @param source
+   * @param destinationDirectory
+   * @return
+   * @throws ParseException */
   private static SIP parseIArxiu(final Path source, final Path destinationDirectory) throws ParseException {
     IPConstants.METS_ENCODE_AND_DECODE_HREF = true; // anti-pattern: not valid for multithreading
 
@@ -128,33 +137,12 @@ public class IArxiuSIP extends SIP {
     }
 
     IArxiuUtils.preProcessStructMap(mainMetsWrapper, structMap);
-    /*  iArxiu
-         mets:structMap
-          mets:div DMDID="EXP_1 EXP_1_DC"
-            mets:div DMDID="DOC_1 DOC_1_DC" LABEL="index.xml"
-              mets:div LABEL="index.xml"
-                mets:fptr FILEID="BIN_1_GRP"
-        EARK:
-         <structMap ID="uuid-C3C0F7C8-D8FA-43E8-A06F-1165C6CC2383" TYPE="physical" LABEL="Common Specification structural map">
-          structMap ID
-            div ID="...
-              div ID="
-                div ID="
-                  <fptr FILEID="dc.xml"/>
-
-      ignoring:
-          <structMap ID="uuid-0D8F99F6-2D5C-4F7B-9320-937B4F43683D" LABEL="RODA structural map">
-            <div ..
-              <mptr xlink:type="simple" xlink:href="representations%2Frep1%2FMETS.xml" LOCTYPE="URL"/>
-     */
 
     try {
-      // + EARKUtils -> processDescriptiveMetadata(mainMetsWrapper, sip, LOGGER, null, sip.getBasePath());
+      // process the main Descriptive Metadata ( as 'null' representation)
       IArxiuUtils.processDescriptiveMetadata(mainMetsWrapper, sip, sip.getBasePath());
-      /* processing the binary file as representation data:
-       *  IPRepresentation.List<IPFile> data <- metsWrapper.setDataDiv(firstLevel); */
+      /* process the representations Descriptive Metadata with their binary files as representation data:  IPRepresentation.List<IPFile> data <- metsWrapper.setDataDiv(eachLevel); */
       IArxiuUtils.processRepresentations(mainMetsWrapper, sip, sip.getBasePath());
-      // Analogue to EARKUtils -> processRepresentations(mainMetsWrapper, sip, LOGGER);
 
     } catch (IPException e) {
       throw new ParseException("Error processing iArxiu SIP parsed Representations Metadata", e);
@@ -162,24 +150,7 @@ public class IArxiuSIP extends SIP {
 
     ValidationUtils.addInfo(validationReport, ValidationConstants.MAIN_METS_IS_VALID, sipPath, mainMetsFile);
 
-    /*
-      EARKUtils.processOtherMetadata(metsWrapper, sip, LOGGER, null, sip.getBasePath());
-      EARKUtils.processPreservationMetadata(metsWrapper, sip, LOGGER, null, sip.getBasePath());
-      EARKUtils.processRepresentations(metsWrapper, sip, LOGGER);
-      EARKUtils.processSchemasMetadata(metsWrapper, sip, sip.getBasePath());
-      EARKUtils.processDocumentationMetadata(metsWrapper, sip, sip.getBasePath());
-      EARKUtils.processAncestors(metsWrapper, sip);
-     */
-
-   /* TODO read descriptiveMetadata -> dmdSec : Voc_document_exp:
-         <-  ¿EARK processDescriptiveMetadata ?
-    */
-    /* TODO read descriptiveMetadata -> dmdSec : www.openarchives.org/OAI/2.0/oai_dc/ : <- EARK metadata/descriptive/dc.xml
-        <- EARKUtils.processDescriptiveMetadata(metsWrapper, sip, LOGGER, null, sip.getBasePath());
-     */
-
-    // TODO mets:fileSec <- mets:fileGrp ¿processDocumentationMetadata?
-
+    /* does not support: process of SchemasMetadata, PreservationMetadata, DocumentationMetadata or Ancestors */
     return sip;
   }
 
