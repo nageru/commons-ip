@@ -85,26 +85,45 @@ public final class IArxiuUtils {
   protected static StructMapType getMainMetsStructMap(MetsWrapper metsWrapper, IPInterface ip) {
     final Mets mets = metsWrapper.getMets();
 
-    final List<StructMapType> metsStructMapList = mets.getStructMap().stream().filter(structMapType -> {
-      final String structMapTypeId = structMapType.getID();
-      final boolean foundValidId = COMMON_SPEC_STRUCTURAL_MAP_ID.equalsIgnoreCase(structMapTypeId);
-      if (!foundValidId) {
-        LOGGER.warn("Main METS.xml file has not recognized structural map id: '{}'", structMapTypeId);
+    final List<StructMapType> structMapList;
+    final List<StructMapType> metsStructMap = mets.getStructMap();
+
+    if (metsStructMap == null || metsStructMap.isEmpty()){
+      LOGGER.error("Main METS.xml file has no structural map! {}", metsWrapper.getMetsPath());
+      structMapList = null;
+    } else if (metsStructMap.size() == 1){
+      structMapList = new ArrayList<>(metsStructMap);
+      final StructMapType structMapType = structMapList.get(0);
+      if (structMapType == null || !COMMON_SPEC_STRUCTURAL_MAP_ID.equalsIgnoreCase(structMapType.getID())){ // not a formal scenario
+        LOGGER.warn("Main METS.xml file using a single structural map with unknown id: '{}'", structMapType.getID());
       }
-      return foundValidId;
-    }).collect(Collectors.toList());
+    } else {
+      structMapList = mets.getStructMap().stream().filter(structMapType -> {
+        final String structMapTypeId = structMapType.getID();
+        final boolean foundValidId = COMMON_SPEC_STRUCTURAL_MAP_ID.equalsIgnoreCase(structMapTypeId);
+        if (!foundValidId) {
+          LOGGER.warn("Main METS.xml file has not recognized structural map id: '{}'", structMapTypeId);
+        }
+        return foundValidId;
+      }).collect(Collectors.toList());
+    }
 
     final StructMapType structMap;
-    final long smCount = metsStructMapList.size();
-    if (smCount == 0) {
+    final long smCount;
+    if (structMapList == null){
+      LOGGER.error("Main METS.xml file has not any structural map for IArxiu METS '{}'", metsWrapper.getMetsPath());
+      ValidationUtils.addIssue(ip.getValidationReport(),
+              ValidationConstants.MAIN_METS_HAS_NO_I_ARXIU_STRUCT_MAP,
+              ValidationEntry.LEVEL.ERROR, structMap = null, ip.getBasePath(), metsWrapper.getMetsPath());
+    } else if ((smCount = structMapList.size()) == 0) {
       LOGGER.error("Main METS.xml file has no structural map for IArxiu '{}' ID", COMMON_SPEC_STRUCTURAL_MAP_ID);
       ValidationUtils.addIssue(ip.getValidationReport(),
               ValidationConstants.MAIN_METS_HAS_NO_I_ARXIU_STRUCT_MAP,
               ValidationEntry.LEVEL.ERROR, structMap = null, ip.getBasePath(), metsWrapper.getMetsPath());
     } else {
-      structMap = metsStructMapList.remove(0);
+      structMap = structMapList.remove(0);
       if (smCount > 1){
-        LOGGER.warn("Main METS.xml file has too many ({}) structural map. Will take first only! Ignored: {}", smCount, metsStructMapList);
+        LOGGER.warn("Main METS.xml file has too many ({}) structural map. Will take first only! Ignored: {}", smCount, structMapList);
       }
       ValidationUtils.addInfo(ip.getValidationReport(),
               ValidationConstants.MAIN_METS_HAS_I_ARXIU_STRUCT_MAP,

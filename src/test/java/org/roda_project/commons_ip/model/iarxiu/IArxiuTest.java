@@ -31,6 +31,29 @@ public class IArxiuTest {
     Utils.deletePath(tempFolder);
   }
 
+
+  @Test
+  public void readAndParseClientIArxiu_1707399731319_4560004_SIP() throws ParseException {
+    final Path iArxiuSIPPath = readIArxiuSIP("client_iArxiu_1707399731319_4560004.zip");
+    Assert.assertNotNull(iArxiuSIPPath);
+    LOGGER.info("Read iArxiu SIP: {}", iArxiuSIPPath);
+
+    final SIP iArxiuSIP = parseIArxiuSIP(iArxiuSIPPath);
+    verifyValidationReport(iArxiuSIP.getValidationReport());
+    LOGGER.info("Parsed iArxiu '{}' SIP: {}", iArxiuSIPPath, iArxiuSIP);
+
+    final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
+    LOGGER.info("Validated iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
+    Assert.assertEquals("Not the expected number of descriptive metadata entries", 1, descriptiveMetadataList.size());
+
+
+    final List<IPRepresentation> representations = validateRepresentations(iArxiuSIP);
+    LOGGER.info("Validated iArxiu SIP representations: {}", representations);
+    Assert.assertEquals("Not the expected number of representations", 2, representations.size());
+
+    LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
+  }
+
   @Test
   public void readAndParseCesca1IArxiuSIP() throws ParseException {
     final Path iArxiuSIPPath = readIArxiuSIP("cesca_earxiu1.zip");

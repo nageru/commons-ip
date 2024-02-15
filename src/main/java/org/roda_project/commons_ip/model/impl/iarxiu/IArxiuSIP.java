@@ -5,6 +5,7 @@
  */
 package org.roda_project.commons_ip.model.impl.iarxiu;
 
+import org.apache.commons.lang3.StringUtils;
 import org.roda_project.commons_ip.mets_v1_11.beans.Mets;
 import org.roda_project.commons_ip.mets_v1_11.beans.MetsType;
 import org.roda_project.commons_ip.mets_v1_11.beans.StructMapType;
@@ -111,7 +112,10 @@ public class IArxiuSIP extends SIP {
 
     final MetsWrapper mainMetsWrapper = new MetsWrapper(mainMets, mainMetsFile);
 
-    sip.setIds(Arrays.asList(mainMets.getOBJID().split(" ")));
+    final String metsObjId = mainMets.getOBJID();
+    if (StringUtils.isNotBlank(metsObjId)) {
+      sip.setIds(Arrays.asList(metsObjId.split(" ")));
+    }
 
     final MetsType.MetsHdr metsHdr = mainMets.getMetsHdr();
     if (metsHdr != null) {
