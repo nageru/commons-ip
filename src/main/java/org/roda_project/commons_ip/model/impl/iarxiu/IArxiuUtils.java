@@ -26,6 +26,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.roda_project.commons_ip.model.IPConstants.COMMON_SPEC_STRUCTURAL_MAP_ID;
 import static org.roda_project.commons_ip.model.impl.CommonSipUtils.validateFileType;
@@ -45,14 +46,14 @@ public final class IArxiuUtils {
    * @return if the mets parsed null otherwise
    */
   public static Mets parseMainMets(Logger logger, ValidationReport validation, Path ipPath, Path mainMETSFile) {
-      try {
-        return METSUtils.instantiateIArxiuMETSFromFile(logger, mainMETSFile);
-      } catch (JAXBException | SAXException e) {
-        ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_NOT_VALID,
-                ValidationEntry.LEVEL.ERROR, e, ipPath, mainMETSFile);
-        logger.error("Error parsing IP '{}' main METS '{}': {}", ipPath, mainMETSFile, e);
-        return null;
-      }
+    try {
+      return METSUtils.instantiateIArxiuMETSFromFile(logger, mainMETSFile);
+    } catch (JAXBException | SAXException e) {
+      ValidationUtils.addIssue(validation, ValidationConstants.MAIN_METS_NOT_VALID,
+              ValidationEntry.LEVEL.ERROR, e, ipPath, mainMETSFile);
+      logger.error("Error parsing IP '{}' main METS '{}': {}", ipPath, mainMETSFile, e);
+      return null;
+    }
   }
 
   public static IPContentType getSipContentType(Mets mets) throws ParseException {
@@ -264,6 +265,13 @@ public final class IArxiuUtils {
   private static void processMetadataExpedients(IPInterface ip, Logger logger, IPRepresentation representation,
                                                 Map<String, MdSecType.MdWrap> expedientXmlData, Path basePath) throws IPException {
 
+    String foundSipId;
+    if (isBlank(foundSipId = ip.getId())) {
+      LOGGER.warn("iArxiu SIP {}for Exp metadata with {} expedients xml data has not informed any SIP Id! {}",
+              representation != null ? "representation '" + representation.getRepresentationID() + "' " : "",
+              expedientXmlData.size(), foundSipId);
+      foundSipId = "[NOT_INFORMED_SIP_ID]"; // for traces
+    }
     final Iterator<Map.Entry<String, MdSecType.MdWrap>> expedientSet = expedientXmlData.entrySet().iterator();
     while (expedientSet.hasNext()) {
       final Map.Entry<String, MdSecType.MdWrap> expEntry = expedientSet.next();
@@ -271,16 +279,22 @@ public final class IArxiuUtils {
       final MdSecType.MdWrap expXmlData = expedientXmlData.get(expId);
       if (expXmlData == null) {
         LOGGER.warn("Missing iArxiu SIP '{}' {}expedient XML data for Exp metadata file '{}': {}",
-                ip.getId(), representation != null ? "representation '" + representation.getRepresentationID() + "' " : "",
+                foundSipId, representation != null ? "representation '" + representation.getRepresentationID() + "' " : "",
                 expId, expedientXmlData);
         expedientSet.remove(); // not attempt to process anymore
       } else {
-        final MetadataType.MetadataTypeEnum type = MetadataType.match(expXmlData.getMDTYPE());
-        final MetadataType.MetadataTypeEnum otherType = MetadataType.match(expXmlData.getOTHERMDTYPE());
+        final String mdType = expXmlData.getMDTYPE();
+        final MetadataType.MetadataTypeEnum type = MetadataType.match(mdType);
+        final String otherMdType = expXmlData.getOTHERMDTYPE();
+        final MetadataType.MetadataTypeEnum otherType = MetadataType.match(otherMdType);
         if (type != null && type != MetadataType.MetadataTypeEnum.OTHER || otherType != null){
           // sample: ...temp.../metadata/OTHER/DOC_1.xml
           processMetadataDocument(ip, logger, representation, expXmlData, expId, IPConstants.DESCRIPTIVE, basePath);
           expedientSet.remove(); // processed once only
+        } else {
+          LOGGER.warn("iArxiu SIP '{}' {}expedient XML data for Exp metadata file '{}' contains unknown Expedient MD types: {} - {}",
+                  foundSipId, representation != null ? "representation '" + representation.getRepresentationID() + "' " : "",
+                  expId, type, otherMdType);
         }
       }
     }
@@ -365,7 +379,7 @@ public final class IArxiuUtils {
       processRepresentationDataFiles(metsWrapper, ip, filePointers, representation, basePath);
     }
 
-    if (ip.getRepresentations().isEmpty()) {       // post-process validations
+    if (ip.getRepresentations().isEmpty()) { // post-process validations
       ValidationUtils.addIssue(ip.getValidationReport(), ValidationConstants.MAIN_METS_NO_REPRESENTATIONS_FOUND,
               ValidationEntry.LEVEL.WARN, (DivType) null, ip.getBasePath(), metsWrapper.getMetsPath());
     }
@@ -380,17 +394,33 @@ public final class IArxiuUtils {
     final List<MdSecType> metadataTypes = findMainDescriptiveMetadataFiles(div);
     for (MdSecType metadata : metadataTypes) {
       final MdSecType.MdWrap mdWRef = metadata.getMdWrap();
-      final String mdType = mdWRef.getMDTYPE();
-      final String otherMdType = mdWRef.getOTHERMDTYPE();
-      /* 1 = {MdSecType@3269} mdtype = "DC" */
-      if (MetadataTypeEnum.DC.getType().equalsIgnoreCase(mdType)) {
+      final MetadataTypeEnum mdType = MetadataType.match(mdWRef.getMDTYPE());
+      final MetadataTypeEnum otherMdType = MetadataType.match(mdWRef.getOTHERMDTYPE());
+      /* 1 = {MdSecType@3269} mdtype = "DC" or other known iArxiu document*/
+      if (MetadataTypeEnum.DC == mdType || isOtherDocument(mdType, otherMdType)) {
         metadataList.add(metadata);
-      } else if (MetadataTypeEnum.OTHER.getType().equalsIgnoreCase(mdType)) { /*  MdSecType mdtype = "OTHER" */
+      } else if (isOtherExpedient(mdType, otherMdType)) { /*  MdSecType mdtype = "OTHER" */
         xmlDataMap.put(metadata.getID(), metadata.getMdWrap());
       } else {
-        LOGGER.warn("Unknown MD Type '{}' (other '{}') for iArxiu metadata: {}", mdType, otherMdType, mdWRef);
+        LOGGER.warn("Unknown MD Type '{}' (other '{}') for iArxiu metadata: {}", mdWRef.getMDTYPE(), mdWRef.getOTHERMDTYPE(), mdWRef);
       }
     }
+  }
+
+  /** the iArxiu other types as documents, {@link MetadataTypeEnum#OTHER_VOC_DOC}
+   * @param mdType
+   * @param otherMdType
+   * @return */
+  private static boolean isOtherDocument(MetadataTypeEnum mdType, MetadataTypeEnum otherMdType){
+    return MetadataTypeEnum.OTHER == mdType && MetadataTypeEnum.OTHER_VOC_DOC == otherMdType;
+  }
+
+  /** any other than {@link #isOtherDocument(MetadataTypeEnum, MetadataTypeEnum)} iArxiu types is treated as expedient
+   * @param mdType
+   * @param otherMdType
+   * @return*/
+  private static boolean isOtherExpedient(MetadataTypeEnum mdType, MetadataTypeEnum otherMdType){
+    return MetadataTypeEnum.OTHER == mdType && !isOtherDocument(mdType, otherMdType);
   }
 
   /** the binary 'data' files in a representation

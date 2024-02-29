@@ -16,7 +16,13 @@ public class IPContentType implements Serializable {
 
   public enum IPContentTypeEnum {
     SFSB, RDB, ERMS, GEODATA, MIXED,
-    PL_EXPEDIENT, // urn:iarxiu:2.0:templates:cesca:PL_Expedient
+    /** default iArxiu Expedient type: urn:iarxiu:2.0:templates:cesca:PL_Expedient */
+    PL_EXPEDIENT,
+    /** iArxiu UPF expedient: urn:iarxiu:2.0:templates:cesca:PL_EXP_UPF" */
+    PL_EXP_UPF,
+    /* iArxiu PL document: urn:iarxiu:2.0:templates:cesca:PL_document; */
+    PL_DOCUMENT,
+    /** other for any SIP ingest */
     OTHER
   }
 
@@ -34,7 +40,7 @@ public class IPContentType implements Serializable {
 
   public IPContentType(final String type, IPContentTypeEnum defaultValue) {
     try {
-      this.type = IPContentTypeEnum.valueOf(type);
+      this.type = IPContentTypeEnum.valueOf(type.toUpperCase());
       this.otherType = "";
     } catch (IllegalArgumentException | NullPointerException e) {
       this.type = defaultValue;

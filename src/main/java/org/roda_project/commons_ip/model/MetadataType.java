@@ -22,9 +22,13 @@ public class MetadataType implements Serializable {
     PREMISRIGHTS("PREMIS:RIGHTS"), PREMISEVENT("PREMIS:EVENT"), TEXTMD("TEXTMD"), METSRIGHTS("METSRIGHTS"),
     ISO191152003("ISO 19115:2003"), NAP("NAP"), EACCPF("EAC-CPF"), LIDO("LIDO"),
     OTHER("OTHER"),
-    /*  Other iArxiu Md Types: MIMETYPE="text/xml"
-      - OTHERMDTYPE="urn:iarxiu:2.0:vocabularies:cesca:Voc_document_exp"
-      - OTHERMDTYPE="urn:iarxiu:2.0:vocabularies:cesca:Voc_expedient"
+    /* iArxiu document MIMETYPE="text/xml" OTHER MD TYPE:
+      - urn:iarxiu:2.0:vocabularies:cesca:Voc_document" */
+    OTHER_VOC_DOC("Voc_document"),
+    /*  Other iArxiu expedients MIMETYPE="text/xml" OTHER MD TYPE:
+      - "urn:iarxiu:2.0:vocabularies:cesca:Voc_document_exp"
+      - "urn:iarxiu:2.0:vocabularies:cesca:Voc_expedient"
+      - "urn:iarxiu:2.0:vocabularies:cesca:Voc_UPF" (normally informed in SIP type 'PL_EXP_UPF')
      */
     OTHER_VOC_EXP("Voc_expedient"), OTHER_VOC_DOC_EXP("Voc_document_exp"), OTHER_VOC_UPF("Voc_UPF");
 
@@ -37,16 +41,15 @@ public class MetadataType implements Serializable {
       typeToEnum.put("PREMIS:EVENT", MetadataTypeEnum.PREMISEVENT);
       typeToEnum.put("ISO 19115:2003", MetadataTypeEnum.ISO191152003);
       typeToEnum.put("EAC-CPF", MetadataTypeEnum.EACCPF);
-
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT", MetadataTypeEnum.OTHER_VOC_DOC);
       typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_EXPEDIENT", MetadataTypeEnum.OTHER_VOC_EXP);
       typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT_EXP", MetadataTypeEnum.OTHER_VOC_DOC_EXP);
       typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_UPF", MetadataTypeEnum.OTHER_VOC_UPF);
-
     }
 
     private final String type;
 
-    private MetadataTypeEnum(final String type) {
+    MetadataTypeEnum(final String type) {
       this.type = type;
     }
 

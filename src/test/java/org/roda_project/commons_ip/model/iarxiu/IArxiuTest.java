@@ -36,65 +36,96 @@ public class IArxiuTest {
   public void readAndParseClientIArxiu_1707399731319_4560004_SIP() throws ParseException {
     final Path iArxiuSIPPath = readIArxiuSIP("client_iArxiu_1707399731319_4560004.zip");
     Assert.assertNotNull(iArxiuSIPPath);
-    LOGGER.info("Read iArxiu SIP: {}", iArxiuSIPPath);
+    LOGGER.info("Read client iArxiu SIP: {}", iArxiuSIPPath);
 
     final SIP iArxiuSIP = parseIArxiuSIP(iArxiuSIPPath);
     verifyValidationReport(iArxiuSIP.getValidationReport());
-    LOGGER.info("Parsed iArxiu '{}' SIP: {}", iArxiuSIPPath, iArxiuSIP);
+    LOGGER.info("Parsed client iArxiu '{}' SIP: {}", iArxiuSIPPath, iArxiuSIP);
 
     final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
-    LOGGER.info("Validated iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
+    LOGGER.info("Validated client iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
     Assert.assertEquals("Not the expected number of descriptive metadata entries", 1, descriptiveMetadataList.size());
 
 
-    final List<IPRepresentation> representations = validateRepresentations(iArxiuSIP);
-    LOGGER.info("Validated iArxiu SIP representations: {}", representations);
+    final List<IPRepresentation> representations = validateIpRepresentations(iArxiuSIP);
+    LOGGER.info("Validated client iArxiu SIP representations: {}", representations);
     Assert.assertEquals("Not the expected number of representations", 2, representations.size());
 
-    LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
+    final int representationFiles = validateRepresentationsFiles(iArxiuSIP.getId(), representations);
+    Assert.assertEquals("Expected number of total client iArxiu SIP representations files", 2, representationFiles);
+
+    LOGGER.info("SIP client with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
+  }
+
+  @Test
+  public void readAndParseCSUCIArxiu_1709195242267_4698167_SIP() throws ParseException {
+    final Path iArxiuSIPPath = readIArxiuSIP("client_CSUC_iArxiu_1709195242267_4698167.zip");
+    Assert.assertNotNull(iArxiuSIPPath);
+    LOGGER.info("Read CSUC iArxiu SIP: {}", iArxiuSIPPath);
+
+    final SIP iArxiuSIP = parseIArxiuSIP(iArxiuSIPPath);
+    verifyValidationReport(iArxiuSIP.getValidationReport());
+    LOGGER.info("Parsed CSUC iArxiu '{}' SIP: {}", iArxiuSIPPath, iArxiuSIP);
+
+    final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
+    LOGGER.info("Validated CSUC iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
+    Assert.assertEquals("Not the expected number of descriptive metadata entries", 1, descriptiveMetadataList.size());
+
+    final List<IPRepresentation> representations = iArxiuSIP.getRepresentations();
+    Assert.assertNotNull(representations);
+    Assert.assertEquals(1, representations.size());
+    LOGGER.info("Validated CSUC iArxiu SIP representations: {}", representations);
+
+    LOGGER.info("SIP CSUC with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
   }
 
   @Test
   public void readAndParseCesca1IArxiuSIP() throws ParseException {
     final Path iArxiuSIPPath = readIArxiuSIP("cesca_earxiu1.zip");
     Assert.assertNotNull(iArxiuSIPPath);
-    LOGGER.info("Read iArxiu SIP: {}", iArxiuSIPPath);
+    LOGGER.info("Read Cesca-1 iArxiu SIP: {}", iArxiuSIPPath);
 
     final SIP iArxiuSIP = parseIArxiuSIP(iArxiuSIPPath);
     verifyValidationReport(iArxiuSIP.getValidationReport());
-    LOGGER.info("Parsed iArxiu '{}' SIP: {}", iArxiuSIPPath, iArxiuSIP);
+    LOGGER.info("Parsed Cesca-1 iArxiu '{}' SIP: {}", iArxiuSIPPath, iArxiuSIP);
 
     final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
-    LOGGER.info("Validated iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
+    LOGGER.info("Validated Cesca-1 iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
     Assert.assertEquals("Not the expected number of descriptive metadata entries", 2, descriptiveMetadataList.size());
 
 
-    final List<IPRepresentation> representations = validateRepresentations(iArxiuSIP);
-    LOGGER.info("Validated iArxiu SIP representations: {}", representations);
+    final List<IPRepresentation> representations = validateIpRepresentations(iArxiuSIP);
+    LOGGER.info("Validated Cesca-1 iArxiu SIP representations: {}", representations);
     Assert.assertEquals("Not the expected number of representations", 1, representations.size());
 
-    LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
+    final int representationFiles = validateRepresentationsFiles(iArxiuSIP.getId(), representations);
+    Assert.assertEquals("Expected number of total Cesca-1 iArxiu SIP representations files", 1, representationFiles);
+
+    LOGGER.info("SIP Cesca-1 with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
   }
 
   @Test
   public void readAndParseCescaAppPreIArxiuSIP() throws ParseException {
     final Path iArxiuSIPPath = readIArxiuSIP("cesca_earxiu-app-pre.zip"); // from Cesca e-arxiu app pre 14 nov 2016 (12392)
     Assert.assertNotNull(iArxiuSIPPath);
-    LOGGER.info("Read iArxiu SIP: {}", iArxiuSIPPath);
+    LOGGER.info("Read Cesca-PRE iArxiu SIP: {}", iArxiuSIPPath);
 
     final SIP iArxiuSIP = parseIArxiuSIP(iArxiuSIPPath);
     verifyValidationReport(iArxiuSIP.getValidationReport());
-    LOGGER.info("Parsed iArxiu '{}' SIP: {}", iArxiuSIPPath, iArxiuSIP);
+    LOGGER.info("Parsed Cesca-PRE iArxiu '{}' SIP: {}", iArxiuSIPPath, iArxiuSIP);
 
     final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
-    LOGGER.info("Validated iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
+    LOGGER.info("Validated Cesca-PRE iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
     Assert.assertEquals("Not the expected number of descriptive metadata entries", 2, descriptiveMetadataList.size());
 
-    final List<IPRepresentation> representations = validateRepresentations(iArxiuSIP);
-    LOGGER.info("Validated iArxiu SIP representations: {}", representations);
+    final List<IPRepresentation> representations = validateIpRepresentations(iArxiuSIP);
+    LOGGER.info("Validated Cesca-PRE iArxiu SIP representations: {}", representations);
     Assert.assertEquals("Not the expected number of representations", 4, representations.size());
 
-    LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
+    int representationFiles = validateRepresentationsFiles(iArxiuSIP.getId(), representations);
+    Assert.assertEquals("Expected number of total Cesca-PRE iArxiu SIP representations files", 7, representationFiles);
+
+    LOGGER.info("SIP Cesca-PRE with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
   }
 
   private static Path readIArxiuSIP(String iArxiuZipName) {
@@ -131,7 +162,7 @@ public class IArxiuTest {
     return descriptiveMetadataList;
   }
 
-  private static List<IPRepresentation> validateRepresentations(SIP iArxiuSIP) {
+  private static List<IPRepresentation> validateIpRepresentations(SIP iArxiuSIP) {
 
     final List<IPRepresentation> representations = iArxiuSIP.getRepresentations();
     Assert.assertNotNull(representations);
@@ -140,19 +171,30 @@ public class IArxiuTest {
     for (IPRepresentation representation : representations) {
       Assert.assertNotNull(representation);
       final String representationId = representation.getRepresentationID(); // index.xml
-      Assert.assertNotNull(representationId);
-
-      final List<IPFile> representationDataFiles = representation.getData();
-      Assert.assertNotEquals(0, representationDataFiles.size());
-      Assert.assertTrue("representation data files to be found",
-              representationDataFiles.stream().allMatch(ipFile -> verifyFileExists(ipFile)));
+      Assert.assertNotNull("Representation must have an id", representationId);
 
       verifyExistingDescriptiveMetadataFiles(representation.getDescriptiveMetadata());
     }
 
-    LOGGER.info("SIP with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
+    LOGGER.info("SIP with id '{}' parsed representations with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
 
     return representations;
+  }
+
+  private static int validateRepresentationsFiles(String sipId, List<IPRepresentation> representations) {
+    int representationFiles = 0;
+    for (IPRepresentation representation : representations) {
+      Assert.assertNotNull(representation);
+      final List<IPFile> representationDataFiles = representation.getData();
+      Assert.assertNotEquals(0, representationDataFiles.size());
+      representationFiles += representationDataFiles.size();
+      Assert.assertTrue("representation data files to be found",
+              representationDataFiles.stream().allMatch(ipFile -> verifyFileExists(ipFile)));
+
+    }
+
+    LOGGER.info("SIP with id '{}' parsed with {} representation files!", sipId, representationFiles);
+    return representationFiles;
   }
 
   private static void verifyExistingDescriptiveMetadataFiles(final List<IPDescriptiveMetadata> descriptiveMetadata){
