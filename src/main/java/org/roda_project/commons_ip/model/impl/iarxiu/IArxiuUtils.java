@@ -158,32 +158,37 @@ public final class IArxiuUtils {
       }
 
       final String aipLabelId = getLabel(aipDiv);
-      final boolean hasMainDivFiles = hasMainDivFilesMetadata(aipLabelId, aipDiv); // existing files under the main div has to be added to a representation
-      if (hasMainDivFiles) {
-        LOGGER.info("IP main div label '{}' contains directly metadata with files to be added as representation: {}", aipLabelId, aipDiv);
-        metsWrapper.addRepresentationDiv(aipDiv);
+      final List<DivType> mainDivFiles = findMainDivFilesMetadata(aipLabelId, aipDiv); // existing files under the main div has to be added to a representation
+      if (!mainDivFiles.isEmpty()) {
+        final DivType mainDivFilesWrapper = new DivType();
+        mainDivFilesWrapper.setLABEL(aipLabelId);
+        mainDivFilesWrapper.getDiv().addAll(mainDivFiles);
+        LOGGER.info("IP main div label '{}' contains directly {} files to be added as representation: {}", aipLabelId, mainDivFiles.size(), mainDivFilesWrapper);
+        metsWrapper.addRepresentationDiv(mainDivFilesWrapper);
       }
     }
   }
 
-  private static boolean hasMainDivFilesMetadata(String mainDivLabelId, DivType fdiv){
+  private static List<DivType> findMainDivFilesMetadata(String mainDivLabelId, DivType fdiv){
     if (isBlank(mainDivLabelId)){
       LOGGER.warn("Discarding the MainDiv included Files Metadata check because no main div label id has been provided! " + mainDivLabelId);
-      return false;
+      return new ArrayList<>();
     }
     if (fdiv == null || fdiv.getDiv() == null){
-      return false;
+      return new ArrayList<>();
     }
-    final List<DivType> mDivFilesMetadata = fdiv.getDiv().stream().filter(dType -> {
+    return fdiv.getDiv().stream().filter(dType -> {
       final String mDivFileLabelId = dType.getLABEL();
       final List<DivType.Fptr> filePointers =  dType.getFptr();
       if (isNotBlank(mDivFileLabelId) && filePointers != null && !filePointers.isEmpty()){
-        LOGGER.info("Found MainDiv '{}' File Metadata '{}': {}", mainDivLabelId, mDivFileLabelId, dType.getFptr());
+        final List<String> filePtrIds = dType.getFptr().stream().map(fptr -> fptr != null ?
+                isNotBlank(fptr.getID()) ? fptr.getID() : fptr.getFILEID() != null && fptr.getFILEID() instanceof  MetsType.FileSec.FileGrp ? ((MetsType.FileSec.FileGrp)fptr.getFILEID()).getID()
+                        : null : null).collect(Collectors.toList());
+        LOGGER.info("Found MainDiv '{}' File Metadata '{}': {}", mainDivLabelId, mDivFileLabelId, filePtrIds);
         return true;
       }
       return false;
-    }).collect(Collectors.toList()); // collects all for the traces...
-    return !mDivFilesMetadata.isEmpty(); // ...  and returns if found any
+    }).collect(Collectors.toList());
   }
 
   private static List<MdSecType> findMainDescriptiveMetadataFiles(DivType fdiv){
@@ -192,25 +197,6 @@ public final class IArxiuUtils {
     }
     return fdiv.getDMDID().stream().filter(o -> o instanceof MdSecType).map(md -> ((MdSecType) md)).filter(mdSecType -> mdSecType.getID() != null && mdSecType.getMdWrap() != null).collect(Collectors.toList());
   }
-
-  /* private static List<DivType> findMainDivFilesMetadata(DivType mDiv) {
-    final String labelId = getLabel(mDiv);
-
-    final List<DivType> fdivFilesList = new ArrayList<>();
-    final List<DivType> fdivList = mDiv.getDiv();
-    if (fdivList == null || fdivList.isEmpty()) {
-      return fdivFilesList;
-    }
-    for (DivType fdiv : fdivList) {
-      final List<String> fileIds;
-      if (labelId != null && !(fileIds = getFilePointerFileIds(fdiv)).isEmpty()) {
-        LOGGER.info("Div label '{}' with File Metadata File Pointer files: {}", labelId, fileIds);
-        fdivFilesList.add(fdiv);
-      }
-    }
-
-    return fdivFilesList;
-  } */
 
   private static DivType findNestedRepresentationFilesMetadata(DivType fdiv){
     final String labelId = getLabel(fdiv);
@@ -571,21 +557,6 @@ public final class IArxiuUtils {
     return div.getFptr().stream().filter(fptrDiv -> fptrDiv != null && (fptrDiv.getFILEID() instanceof MetsType.FileSec.FileGrp)).map(fptrDiv -> (MetsType.FileSec.FileGrp)fptrDiv.getFILEID())
             .filter(fileGrp -> isNotBlank(fileGrp.getID())).map(fileGrp -> fileGrp.getID().trim()).collect(Collectors.toList());
   }
-
-  private static List<DivType.Fptr> getMainDivPointersList(DivType div){
-    if (div == null){
-      return new ArrayList<>();
-    }
-
-    final List<DivType.Fptr> filePointersList = new ArrayList<>();
-
-    if (div.getFptr() != null && !div.getFptr().isEmpty()) { // has something at first level as SIP descriptive metadata files
-      div.getFptr().forEach(fps -> filePointersList.add(fps));
-    }
-
-    return filePointersList;
-  }
-
 
   private static List<DivType.Fptr> getRepresentationFilePointersList(DivType div){
     if (div == null){

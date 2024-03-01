@@ -14,7 +14,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertEquals;
 
 /**
  */
@@ -45,15 +45,15 @@ public class IArxiuTest {
 
     final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
     LOGGER.info("Validated client iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
-    Assert.assertEquals("Not the expected number of descriptive metadata entries", 1, descriptiveMetadataList.size());
+    assertEquals("Not the expected number of descriptive metadata entries", 1, descriptiveMetadataList.size());
 
 
     final List<IPRepresentation> representations = validateIpRepresentationsMetadata(iArxiuSIP);
     LOGGER.info("Validated client iArxiu SIP representations: {}", representations);
-    Assert.assertEquals("Not the expected number of representations", 2, representations.size());
+    assertEquals("Not the expected number of representations", 2, representations.size());
 
     final int representationFiles = validateRepresentationsFiles(iArxiuSIP.getId(), representations);
-    Assert.assertEquals("Expected number of total client iArxiu SIP representations files", 2, representationFiles);
+    assertEquals("Expected number of total client iArxiu SIP representations files", 2, representationFiles);
 
     LOGGER.info("SIP client with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
   }
@@ -70,17 +70,16 @@ public class IArxiuTest {
 
     final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
     LOGGER.info("Validated CSUC iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
-    Assert.assertEquals("Not the expected number of descriptive metadata entries", 1, descriptiveMetadataList.size());
+    assertEquals("Not the expected number of descriptive metadata entries", 1, descriptiveMetadataList.size());
 
     final List<IPRepresentation> representations = validateIpRepresentations(iArxiuSIP); // CSUC contains only the representations with representation file...
-    Assert.assertEquals("Not the expected number of representations", 1, representations.size());
-    // ... but no representation descriptive metadata: assertNull(representations.get(0).getDescriptiveMetadata())
-    verifyExistingDescriptiveMetadataFiles(representations.get(0).getDescriptiveMetadata()); // currently as it, the sip descriptive Metadata is also use as the representation descriptive metadata
+    assertEquals("Not the expected number of representations", 1, representations.size());
+    assertEquals(0, representations.get(0).getDescriptiveMetadata().size()); // ... but no representation descriptive metadata
 
     LOGGER.info("Validated CSUC iArxiu SIP representations: {}", representations);
 
     final int representationFiles = validateRepresentationsFiles(iArxiuSIP.getId(), representations);
-    Assert.assertEquals("Expected number of total CSUC iArxiu SIP representations files", 1, representationFiles);
+    assertEquals("Expected number of total CSUC iArxiu SIP representations files", 1, representationFiles);
 
     LOGGER.info("SIP CSUC with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
   }
@@ -97,14 +96,14 @@ public class IArxiuTest {
 
     final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
     LOGGER.info("Validated Cesca-1 iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
-    Assert.assertEquals("Not the expected number of descriptive metadata entries", 2, descriptiveMetadataList.size());
+    assertEquals("Not the expected number of descriptive metadata entries", 2, descriptiveMetadataList.size());
 
     final List<IPRepresentation> representations = validateIpRepresentationsMetadata(iArxiuSIP);
     LOGGER.info("Validated Cesca-1 iArxiu SIP representations: {}", representations);
-    Assert.assertEquals("Not the expected number of representations", 1, representations.size());
+    assertEquals("Not the expected number of representations", 1, representations.size());
 
     final int representationFiles = validateRepresentationsFiles(iArxiuSIP.getId(), representations);
-    Assert.assertEquals("Expected number of total Cesca-1 iArxiu SIP representations files", 1, representationFiles);
+    assertEquals("Expected number of total Cesca-1 iArxiu SIP representations files", 1, representationFiles);
 
     LOGGER.info("SIP Cesca-1 with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
   }
@@ -121,14 +120,14 @@ public class IArxiuTest {
 
     final List<IPDescriptiveMetadata> descriptiveMetadataList = validateDescriptiveMetadata(iArxiuSIP);
     LOGGER.info("Validated Cesca-PRE iArxiu SIP descriptive metadata: {}", descriptiveMetadataList);
-    Assert.assertEquals("Not the expected number of descriptive metadata entries", 2, descriptiveMetadataList.size());
+    assertEquals("Not the expected number of descriptive metadata entries", 2, descriptiveMetadataList.size());
 
     final List<IPRepresentation> representations = validateIpRepresentationsMetadata(iArxiuSIP);
     LOGGER.info("Validated Cesca-PRE iArxiu SIP representations: {}", representations);
-    Assert.assertEquals("Not the expected number of representations", 4, representations.size());
+    assertEquals("Not the expected number of representations", 4, representations.size());
 
     int representationFiles = validateRepresentationsFiles(iArxiuSIP.getId(), representations);
-    Assert.assertEquals("Expected number of total Cesca-PRE iArxiu SIP representations files", 7, representationFiles);
+    assertEquals("Expected number of total Cesca-PRE iArxiu SIP representations files", 7, representationFiles);
 
     LOGGER.info("SIP Cesca-PRE with id '{}' parsed with success (valid? {})!", iArxiuSIP.getId(), iArxiuSIP.getValidationReport().isValid());
   }
