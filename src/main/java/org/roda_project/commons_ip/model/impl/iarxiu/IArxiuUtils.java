@@ -415,19 +415,23 @@ public final class IArxiuUtils {
 
   /** prepares the documents and expedients
    * @param div the struct map preprocessed div type (for a main METS or each Representation)
-   * @param metadataList documents {@link MetadataTypeEnum#DC}
-   * @param xmlDataMap expedients {@link MetadataTypeEnum#OTHER} (includes the OTHER MD TYPEs for the iArxiu expedients, like: {@link MetadataTypeEnum#OTHER_VOC_DOC_EXP}, {@link MetadataTypeEnum#OTHER_VOC_EXP} or {@link MetadataTypeEnum#OTHER_VOC_UPF}) */
-  private static void loadDescriptiveMetadataFiles(DivType div, List<MdSecType> metadataList, Map<String, MdSecType.MdWrap> xmlDataMap) {
+   * @param metadataList
+   *          dublin core metadata {@link MetadataTypeEnum#DC} & {@link MetadataTypeEnum#I_ARXIU_DC}
+   *          and documents {@link MetadataTypeEnum#I_ARXIU_VOC_DOC}, {@link MetadataTypeEnum#I_ARXIU_VOC_DOC_EXP} & {@link MetadataTypeEnum#I_ARXIU_VOC_UPF} & {@link MetadataTypeEnum#I_ARXIU_DOC}
+   * @param xmlDataMap expedients {@link MetadataTypeEnum#I_ARXIU_VOC_EXP}
+   *          and {@link MetadataTypeEnum#OTHER} for the OTHER MD TYPEs */
+  private static void loadDescriptiveMetadataFiles(DivType div, List<MdSecType> metadataList, Map<String, MdSecType.MdWrap> xmlDataMap) throws IPException {
 
     final List<MdSecType> metadataTypes = findMainDescriptiveMetadataFiles(div);
     for (MdSecType metadata : metadataTypes) {
       final MdSecType.MdWrap mdWRef = metadata.getMdWrap();
       final MetadataTypeEnum mdType = MetadataType.match(mdWRef.getMDTYPE());
       final MetadataTypeEnum otherMdType = MetadataType.match(mdWRef.getOTHERMDTYPE());
-      /* 1 = {MdSecType@3269} mdtype = "DC" or other known iArxiu document*/
-      if (MetadataTypeEnum.DC == mdType || isOtherDocument(mdType, otherMdType)) {
+      if (isDocument(mdType, otherMdType)) { // 1 = {MdSecType@3269} mdtype = "DC" or known iArxiu DC or iArxiu document
+        overrideIArxiuDocumentMdType(mdWRef, mdType, otherMdType);
         metadataList.add(metadata);
-      } else if (isOtherExpedient(mdType, otherMdType)) { /*  MdSecType mdtype = "OTHER" */
+      } else if (isExpedient(mdType, otherMdType)) { /*  MdSecType mdtype = "OTHER" */
+        overrideIArxiuExpedientMdType(mdWRef, mdType, otherMdType);
         xmlDataMap.put(metadata.getID(), metadata.getMdWrap());
       } else {
         LOGGER.warn("Unknown MD Type '{}' (other '{}') for iArxiu metadata: {}", mdWRef.getMDTYPE(), mdWRef.getOTHERMDTYPE(), mdWRef);
@@ -435,20 +439,77 @@ public final class IArxiuUtils {
     }
   }
 
-  /** the iArxiu other types as documents, {@link MetadataTypeEnum#OTHER_VOC_DOC}
+  /** "DC" or the known iArxiu DC or iArxiu documents
+   * @param mdType
+   * @return */
+  private static boolean isDocument(MetadataTypeEnum mdType){
+    return MetadataTypeEnum.DC == mdType || MetadataTypeEnum.I_ARXIU_DC == mdType ||
+            MetadataTypeEnum.I_ARXIU_VOC_DOC == mdType || MetadataTypeEnum.I_ARXIU_VOC_DOC_EXP == mdType || MetadataTypeEnum.I_ARXIU_VOC_UPF == mdType || MetadataTypeEnum.I_ARXIU_DOC == mdType;
+  }
+
+  /** is a document metadata type {@link #isDocument(MetadataTypeEnum)} or is other metadata type {@link MetadataTypeEnum#OTHER} and other metadata type {@link #isDocument(MetadataTypeEnum)}
    * @param mdType
    * @param otherMdType
    * @return */
-  private static boolean isOtherDocument(MetadataTypeEnum mdType, MetadataTypeEnum otherMdType){
-    return MetadataTypeEnum.OTHER == mdType && MetadataTypeEnum.OTHER_VOC_DOC == otherMdType;
+  private static boolean isDocument(MetadataTypeEnum mdType, MetadataTypeEnum otherMdType){
+    return isDocument(mdType) || mdType == MetadataTypeEnum.OTHER && isDocument(otherMdType);
   }
 
-  /** any other than {@link #isOtherDocument(MetadataTypeEnum, MetadataTypeEnum)} iArxiu types is treated as expedient
+  /** all document types are overridden with the IArxiu Document type for Roda: {@link MetadataTypeEnum#I_ARXIU_DC} or {@link MetadataTypeEnum#I_ARXIU_DOC}
+   * @param mdWRef metadata ref to be overridden
+   * @param mdType
+   * @param otherMdType */
+  private static void overrideIArxiuDocumentMdType(MdSecType.MdWrap mdWRef, MetadataTypeEnum mdType, MetadataTypeEnum otherMdType) throws IPException {
+    if (mdType == MetadataTypeEnum.I_ARXIU_DC || mdType == MetadataTypeEnum.I_ARXIU_DOC){
+      return; // is the correct expected IArxiu Dublic Core or IArxiu document
+    }
+
+    if (!isDocument(mdType, otherMdType)) { // not valid scenario (fix needed)
+      throw new IPException("Not valid iArxiu document type: '" + mdType + "'- '" + otherMdType + "'");
+    }
+
+    if (mdType != MetadataTypeEnum.DC && mdType != MetadataTypeEnum.OTHER){ // not expected scenario...
+      LOGGER.warn("Found MD Type '{}' and Other MD Type '{}' is not an expected iArxiu document!", mdType, otherMdType);
+      // ... but continues for a fallback
+    }
+
+    if (mdType!= null && mdType != MetadataTypeEnum.OTHER) { // relevant metadata type was informed...
+      mdWRef.setOTHERMDTYPE(mdType.getType()); // ... saved in the other md type
+    }
+
+    if (mdType == MetadataTypeEnum.DC || otherMdType == MetadataTypeEnum.DC) {
+      mdWRef.setMDTYPE(MetadataTypeEnum.I_ARXIU_DC.getType());
+    } else { // the fallback is set
+      mdWRef.setMDTYPE(MetadataTypeEnum.I_ARXIU_DOC.getType());
+    }
+  }
+
+  /** the known iArxiu expedients or any other {@link MetadataTypeEnum#OTHER} that is not a document {@link #isDocument(MetadataTypeEnum)} are treated as expedient
    * @param mdType
    * @param otherMdType
    * @return*/
-  private static boolean isOtherExpedient(MetadataTypeEnum mdType, MetadataTypeEnum otherMdType){
-    return MetadataTypeEnum.OTHER == mdType && !isOtherDocument(mdType, otherMdType);
+  private static boolean isExpedient(MetadataTypeEnum mdType, MetadataTypeEnum otherMdType){
+     if (mdType == MetadataTypeEnum.I_ARXIU_VOC_EXP || otherMdType == MetadataTypeEnum.I_ARXIU_EXP) {
+       return true; // the expected iArxiu expedient type
+     }
+     return MetadataTypeEnum.OTHER == mdType && !isDocument(otherMdType);
+  }
+
+  /** all expedient types are overridden with the IArxiu Expedient type for Roda: {@link MetadataTypeEnum#I_ARXIU_EXP}
+   * @param mdType
+   */
+  private static void overrideIArxiuExpedientMdType(MdSecType.MdWrap mdWRef, MetadataTypeEnum mdType, MetadataTypeEnum otherMdType) throws IPException {
+    if (mdType == MetadataTypeEnum.I_ARXIU_EXP) {
+      return;  // is the correct expected IArxiu Expedient
+    }
+    if (!isExpedient(mdType, otherMdType) || isDocument(mdType, otherMdType)) {  // not valid scenario (fix needed)
+      throw new IPException("Not valid iArxiu expedient type: '" + mdType + "'- '" + otherMdType + "'");
+    }
+
+    if (mdType!= null && mdType != MetadataTypeEnum.OTHER) { // relevant metadata type was informed...
+      mdWRef.setOTHERMDTYPE(mdType.getType()); // ... saved in the other md type
+    }
+    mdWRef.setMDTYPE(MetadataTypeEnum.I_ARXIU_EXP.getType());
   }
 
   /** the binary 'data' files in a representation

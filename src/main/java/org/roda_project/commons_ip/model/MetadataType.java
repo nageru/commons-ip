@@ -8,6 +8,7 @@
 package org.roda_project.commons_ip.model;
 
 import java.io.Serializable;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,20 +18,20 @@ public class MetadataType implements Serializable {
   private static final long serialVersionUID = 9052247527983339112L;
 
   public enum MetadataTypeEnum {
-    MARC("MARC"), MODS("MODS"), EAD("EAD"), DC("DC"), NISOIMG("NISOIMG"), LCAV("LC-AV"), VRA("VRA"), TEIHDR("TEIHDR"),
+    MARC("MARC"), MODS("MODS"), EAD("EAD"),
+    DC("DC"), // the Dublin Core metadata
+    NISOIMG("NISOIMG"), LCAV("LC-AV"), VRA("VRA"), TEIHDR("TEIHDR"),
     DDI("DDI"), FGDC("FGDC"), LOM("LOM"), PREMIS("PREMIS"), PREMISOBJECT("PREMIS:OBJECT"), PREMISAGENT("PREMIS:AGENT"),
     PREMISRIGHTS("PREMIS:RIGHTS"), PREMISEVENT("PREMIS:EVENT"), TEXTMD("TEXTMD"), METSRIGHTS("METSRIGHTS"),
     ISO191152003("ISO 19115:2003"), NAP("NAP"), EACCPF("EAC-CPF"), LIDO("LIDO"),
-    OTHER("OTHER"),
-    /* iArxiu document MIMETYPE="text/xml" OTHER MD TYPE:
-      - urn:iarxiu:2.0:vocabularies:cesca:Voc_document" */
-    OTHER_VOC_DOC("Voc_document"),
-    /*  Other iArxiu expedients MIMETYPE="text/xml" OTHER MD TYPE:
-      - "urn:iarxiu:2.0:vocabularies:cesca:Voc_document_exp"
-      - "urn:iarxiu:2.0:vocabularies:cesca:Voc_expedient"
-      - "urn:iarxiu:2.0:vocabularies:cesca:Voc_UPF" (normally informed in SIP type 'PL_EXP_UPF')
-     */
-    OTHER_VOC_EXP("Voc_expedient"), OTHER_VOC_DOC_EXP("Voc_document_exp"), OTHER_VOC_UPF("Voc_UPF");
+    /* iArxiu file Documents document MIMETYPE="text/xml" */
+    I_ARXIU_VOC_DOC("Voc_document"), I_ARXIU_VOC_DOC_EXP("Voc_document_exp"), I_ARXIU_VOC_UPF("Voc_UPF"),
+    /* iArxiu Expedients MIMETYPE="text/xml" */
+    I_ARXIU_VOC_EXP("Voc_expedient"),
+    /* Roda iArxiu mappings: for Dublin Core, Documents and Expedients */
+    I_ARXIU_DC("dc_SimpleDC20021212"), I_ARXIU_DOC("iArxiu-doc"), I_ARXIU_EXP("iArxiu-exp"),
+    // Other types
+    OTHER("OTHER");
 
     protected static final Map<String, MetadataTypeEnum> typeToEnum = new HashMap<>();
     static {
@@ -41,10 +42,12 @@ public class MetadataType implements Serializable {
       typeToEnum.put("PREMIS:EVENT", MetadataTypeEnum.PREMISEVENT);
       typeToEnum.put("ISO 19115:2003", MetadataTypeEnum.ISO191152003);
       typeToEnum.put("EAC-CPF", MetadataTypeEnum.EACCPF);
-      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT", MetadataTypeEnum.OTHER_VOC_DOC);
-      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_EXPEDIENT", MetadataTypeEnum.OTHER_VOC_EXP);
-      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT_EXP", MetadataTypeEnum.OTHER_VOC_DOC_EXP);
-      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_UPF", MetadataTypeEnum.OTHER_VOC_UPF);
+      /* iArxiu (DC arrives as such) document and expedient types */
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT", MetadataTypeEnum.I_ARXIU_VOC_DOC);
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT", MetadataTypeEnum.I_ARXIU_VOC_DOC);
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_DOCUMENT_EXP", MetadataTypeEnum.I_ARXIU_VOC_DOC_EXP);
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_UPF", MetadataTypeEnum.I_ARXIU_VOC_UPF); // normally informed in SIP type 'PL_EXP_UPF'
+      typeToEnum.put("URN:IARXIU:2.0:VOCABULARIES:CESCA:VOC_EXPEDIENT", MetadataTypeEnum.I_ARXIU_VOC_EXP);
     }
 
     private final String type;
@@ -81,14 +84,23 @@ public class MetadataType implements Serializable {
     if (type == null){
       return null;
     }
-    try {
+    try { // by name...
       return MetadataTypeEnum.valueOf(type);
-    } catch (IllegalArgumentException | NullPointerException e) {
-      if (MetadataTypeEnum.typeToEnum.containsKey(type.toUpperCase())) {
-        return MetadataTypeEnum.typeToEnum.get(type.toUpperCase());
-      } else {
-        return null;
+    } catch (IllegalArgumentException | NullPointerException e) { }
+
+    // by type...
+    for (MetadataTypeEnum value : MetadataTypeEnum.values()){
+      if (value.getType().equalsIgnoreCase(type)){
+        return value;
       }
+    }
+
+    // by file metadata mapping
+    final String typeKey = type.toUpperCase();
+    if (MetadataTypeEnum.typeToEnum.containsKey(typeKey)) {
+      return MetadataTypeEnum.typeToEnum.get(typeKey);
+    } else {
+      return null;
     }
   }
 

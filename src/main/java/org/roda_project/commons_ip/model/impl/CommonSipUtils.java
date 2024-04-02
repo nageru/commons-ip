@@ -1,6 +1,5 @@
 package org.roda_project.commons_ip.model.impl;
 
-import org.roda_project.commons_ip.mets_v1_11.beans.DivType;
 import org.roda_project.commons_ip.mets_v1_11.beans.FileType;
 import org.roda_project.commons_ip.mets_v1_11.beans.MdSecType;
 import org.roda_project.commons_ip.model.*;

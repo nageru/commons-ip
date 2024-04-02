@@ -214,10 +214,15 @@ public class IArxiuTest {
   private static void verifyExistingDescriptiveMetadataFiles(final List<IPDescriptiveMetadata> descriptiveMetadata){
     Assert.assertNotNull(descriptiveMetadata);
     Assert.assertNotEquals(0, descriptiveMetadata.size());
-    Assert.assertTrue("Descriptive Metadata to be found",
-            descriptiveMetadata.stream().allMatch(ipFile ->
-                    ipFile != null && ipFile.getCreateDate() != null && ipFile.getMetadataType() != null && verifyFileExists(ipFile.getMetadata())));
 
+    for (IPDescriptiveMetadata ipFile : descriptiveMetadata) {
+      Assert.assertTrue("Descriptive Metadata to be found: " + ipFile,
+              ipFile != null && ipFile.getCreateDate() != null && ipFile.getMetadataType() != null && verifyFileExists(ipFile.getMetadata()));
+
+      final MetadataType.MetadataTypeEnum mdType = ipFile.getMetadataType().getType();
+      Assert.assertTrue("Descriptive Metadata to be a supported iArxiu type: " + mdType + " (other: '" + ipFile.getMetadataType().getOtherType() + "')",
+              mdType == MetadataType.MetadataTypeEnum.I_ARXIU_DC || mdType == MetadataType.MetadataTypeEnum.I_ARXIU_DOC || mdType == MetadataType.MetadataTypeEnum.I_ARXIU_EXP);
+    }
   }
 
   private static boolean verifyFileExists(IPFile ipFile){
